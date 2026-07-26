@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 import { HEIGHT, WIDTH } from "../src/config.js";
 import {
@@ -139,4 +140,26 @@ test("一般瀏覽器不顯示提示", () => {
 test("提示不再宣稱內建瀏覽器無法全螢幕", () => {
   const html = renderMenu(createProfile(), { inAppBrowser: "LINE", fullscreenActive: false });
   assert.doesNotMatch(html, /無法全螢幕|不支援全螢幕/);
+});
+
+const stylesCss = readFileSync(fileURLToPath(new URL("../src/styles.css", import.meta.url)), "utf8");
+
+test("矮視窗斷點內，overlay基底類別要能捲動——所有畫面共用，不必逐一補", () => {
+  const mediaBlock = stylesCss.slice(
+    stylesCss.indexOf("@media (height <= 640px)"),
+    stylesCss.indexOf("@media (height <= 640px)") + 2000
+  );
+  assert.match(mediaBlock, /\.overlay\s*\{[^}]*justify-content:\s*flex-start/);
+  assert.match(mediaBlock, /\.overlay\s*\{[^}]*overflow-y:\s*auto/);
+});
+
+test("resize事件的處理器名稱不再只更新戰鬥版面，而是完整同步全螢幕狀態", () => {
+  const mainJs = readFileSync(fileURLToPath(new URL("../src/main.js", import.meta.url)), "utf8");
+  assert.match(mainJs, /addEventListener\("resize",\s*syncFullscreenState\)/);
+  assert.match(mainJs, /visualViewport\?\.addEventListener\("resize",\s*syncFullscreenState\)/);
+});
+
+test("syncFullscreenState只在全螢幕狀態真的改變時才重新渲染選單，避免一般resize過度重繪", () => {
+  const mainJs = readFileSync(fileURLToPath(new URL("../src/main.js", import.meta.url)), "utf8");
+  assert.match(mainJs, /if\s*\(activeNow === lastFullscreenActive\)\s*return;/);
 });
