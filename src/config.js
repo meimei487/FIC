@@ -646,6 +646,8 @@ export const BATTLE_ACHIEVEMENTS = [
   { id: "score5m", icon: "5M", name: "星火燎原", desc: "單局分數達到5,000,000", scoreTarget: 5000000, reward: 220 },
   { id: "score10m", icon: "10M", name: "滅絕授權", desc: "單局分數達到10,000,000・解鎖滅絕協定", scoreTarget: 10000000, reward: 300 },
   { id: "score25m", icon: "25M", name: "火線傳說", desc: "單局分數達到25,000,000", scoreTarget: 25000000, reward: 500 },
+  { id: "score50m", icon: "50M", name: "戰史封神", desc: "單局分數達到50,000,000", scoreTarget: 50000000, reward: 750 },
+  { id: "score100m", icon: "100M", name: "縱隊神話", desc: "單局分數達到100,000,000", scoreTarget: 100000000, reward: 1100 },
   { id: "warmachine", icon: "⚔", name: "機甲屠夫", desc: "單局擊破3座機甲堡壘" },
   { id: "allgates1", icon: "◇", name: "滴水不漏", desc: "單輪至少6組二選一全部取得", stat: "perfectGateRounds", target: 1, reward: 25, elite: true },
   { id: "allgates3", icon: "◇3", name: "全數回收", desc: "累積3輪完成全部二選一", stat: "perfectGateRounds", target: 3, reward: 55, elite: true },

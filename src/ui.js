@@ -412,7 +412,13 @@ function renderDailyTab(profile) {
       <strong>${done ? `已領 ◆${achievement.reward}` : `${progress}/${achievement.comboTarget}・◆${achievement.reward}`}</strong>
     </div>`;
   }).join("");
-  const scoreMedals = scoreAchievements.map((achievement) => {
+  // Progressive reveal: show everything already earned, plus the single next
+  // tier to aim for. Later tiers stay hidden so the ceiling isn't spoiled —
+  // there are now milestones well past what most runs reach.
+  const nextScoreIndex = scoreAchievements.findIndex((achievement) => !profile.achievements.includes(achievement.id));
+  const visibleScoreAchievements = scoreAchievements.filter((achievement, index) =>
+    profile.achievements.includes(achievement.id) || index === nextScoreIndex);
+  const scoreMedals = visibleScoreAchievements.map((achievement) => {
     const done = profile.achievements.includes(achievement.id);
     const progress = Math.min(achievement.scoreTarget, profile.best || 0);
     return `<div class="combo-medal score-medal ${done ? "done" : ""}">
@@ -445,7 +451,7 @@ function renderDailyTab(profile) {
     <p class="permanent-note"><b>以下為永久戰績</b><span>不會於每日00:00重置；完成後永久保留</span></p>
     <div class="section-label"><span>COMBO MILESTONES</span><b>連殺 ${comboCompleted}/${comboAchievements.length}・最高 ${number(profile.stats.bestCombo)}</b></div>
     <div class="combo-medal-list">${comboMedals}</div>
-    <div class="section-label"><span>SCORE MILESTONES</span><b>積分 ${scoreCompleted}/${scoreAchievements.length}・最高 ${number(profile.best)}</b></div>
+    <div class="section-label"><span>SCORE MILESTONES</span><b>積分已達成 ${scoreCompleted} 項・最高 ${number(profile.best)}</b></div>
     <div class="combo-medal-list score-medal-list">${scoreMedals}</div>
     <div class="section-label"><span>WEAPON MASTERY</span><b>武器專精 ${weaponCompleted}/${weaponAchievements.length}</b></div>
     <div class="achievement-list weapon-mastery-list">${weaponMedals}
