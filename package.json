@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vite build && node scripts/pack-portable.mjs",
+    "build": "vite build && node scripts/pack-portable.mjs && node scripts/verify-build.mjs",
     "test": "node --import ./tests/register-asset-loader.mjs --test tests/*.test.js"
   },
   "devDependencies": {
