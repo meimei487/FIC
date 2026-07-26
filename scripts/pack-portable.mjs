@@ -4,12 +4,16 @@ import { gzipSync, gunzipSync } from "node:zlib";
 
 const outputPath = path.resolve(import.meta.dirname, "../dist/index.html");
 const source = await fs.readFile(outputPath, "utf8");
-const scriptMatch = source.match(/<script\b[^>]*>([\s\S]*?)<\/script>/i);
+// Must target the module script specifically. The document also contains a
+// small classic <script> that drives the loading screen, and it appears first —
+// matching "the first script tag" would package that instead of the game and
+// happily emit a tiny, empty build.
+const scriptMatch = source.match(/<script\b[^>]*type="module"[^>]*>([\s\S]*?)<\/script>/i);
 const styleMatch = source.match(/<style\b[^>]*>([\s\S]*?)<\/style>/i);
 const headMatch = source.match(/<head>([\s\S]*?)<script\b/i);
 
 if (!scriptMatch || !styleMatch || !headMatch) {
-  throw new Error("portable packer could not find the inlined script, stylesheet, or document head");
+  throw new Error("portable packer could not find the inlined module script, stylesheet, or document head");
 }
 
 const javascript = scriptMatch[1];
