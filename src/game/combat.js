@@ -23,6 +23,7 @@ import {
   armorCap,
   bossChassisForOrdinal,
   buildZoneRoute,
+  pickHazardRounds,
   maxDeploymentCost,
   supportCost,
   threatProtocolAvailable,
@@ -438,7 +439,20 @@ export class CombatEngine {
       run.eventClock = (10 + Math.random() * 4) / Math.max(0.55, protocol.supplyRate);
     }
 
-    if (!run.bossAlive && !run.bossSpawned && zone.hazard && run.sceneTime >= 5 && run.hazardClock <= 0) {
+    // Difficulty ramp (plan C). A brand-new account climbs: first round has no
+    // zone hazards at all, second round arms one of the three scene slots,
+    // third round arms two, and from the fourth round everything is live.
+    // Once the account has cleared Moloch even once it is marked graduated and
+    // skips the ramp entirely. MAX deployment always runs at full intensity.
+    const hazardsArmed = run.maxDeploymentActive || this.profile.hazardGraduated
+      ? true
+      : run.bossKills === 0
+        ? false
+        : run.bossKills === 1 || run.bossKills === 2
+          ? run.hazardRoundPicks.includes(run.scene % 3)
+          : true;
+
+    if (!run.bossAlive && !run.bossSpawned && zone.hazard && hazardsArmed && run.sceneTime >= 5 && run.hazardClock <= 0) {
       this.queueZoneHazard(zone);
       const base = zone.id === "skyfront" ? 7.5 : zone.id === "foundry" ? 8.5 : 10;
       run.hazardClock = (base + Math.random() * 2.5) * protocol.hazardInterval;
@@ -1778,8 +1792,25 @@ export class CombatEngine {
     run.bossSpawned = false;
     run.bossChassis = null;
     run.bossKills += 1;
+    // Fastest-clear record: stamped the moment the third boss (Moloch) falls,
+    // but the run deliberately keeps going — this is an endless grinder, so
+    // ending it here would cost the player their score. The record survives
+    // even if the run later ends in defeat.
+    if (run.bossKills >= 3 && !run.firstClearAchieved) {
+      run.firstClearAchieved = true;
+      run.firstClearElapsed = run.elapsed;
+      // Clearing once graduates the account: every future run gets full zone
+      // hazards from the first round instead of climbing the ramp again.
+      if (!this.profile.hazardGraduated) {
+        this.profile.hazardGraduated = true;
+        saveProfile(this.profile);
+        this.onSave(this.profile);
+      }
+    }
     run.scene += 1;
     run.zoneRoute = buildZoneRoute(run.bossKills, run.zoneRoute, run.routeSeed);
+    if (run.bossKills === 1) run.hazardRoundPicks = pickHazardRounds(1);
+    else if (run.bossKills === 2) run.hazardRoundPicks = pickHazardRounds(2);
     run.sceneTime = 0;
     run.enemies.length = 0;
     this.clearBullets();
