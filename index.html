@@ -10,7 +10,60 @@
     <title>火線暴走：鋼鐵縱隊</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!--
+        Placed before the module script on purpose. The portable build inlines
+        the whole game — audio included — into one very large script tag, so if
+        this sits after it the browser has to finish downloading everything
+        before it can paint anything, which defeats the point of a loading
+        hint. Here it shows after roughly the first 62KB.
+
+        No cleanup needed: the app replaces the contents of #root when it
+        mounts.
+      -->
+      <div id="boot-loading">
+        <style>
+          #boot-loading {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            background: #070b0d;
+            color: #eaf7f5;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Noto Sans TC", sans-serif;
+            text-align: center;
+            padding: 24px;
+          }
+          #boot-loading .boot-spinner {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 3px solid #66e8ee33;
+            border-top-color: #66e8ee;
+            animation: boot-spin 0.8s linear infinite;
+          }
+          #boot-loading strong {
+            font-size: 14px;
+            letter-spacing: 0.04em;
+          }
+          #boot-loading span {
+            font-size: 11px;
+            color: #829796;
+            max-width: 260px;
+            line-height: 1.6;
+          }
+          @keyframes boot-spin {
+            to { transform: rotate(360deg); }
+          }
+        </style>
+        <div class="boot-spinner" aria-hidden="true"></div>
+        <strong>火線暴走：鋼鐵縱隊</strong>
+        <span>檔案下載中，請稍候…<br />遊戲含完整配樂，體積較大，第一次載入可能需要一點時間</span>
+      </div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
