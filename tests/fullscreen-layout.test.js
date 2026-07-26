@@ -75,3 +75,43 @@ test("首頁七機展示採1-2-4楔形隊列，不再留下中央尾兵", () => 
   assert.match(styles, /img:nth-of-type\(4\),[\s\S]*?img:nth-of-type\(7\)\s*\{[\s\S]*?top:\s*143px/);
   assert.match(styles, /img:nth-of-type\(7\)\s*\{[\s\S]*?right:\s*4%;[\s\S]*?left:\s*auto/);
 });
+
+import { inAppBrowserName } from "../src/fullscreen-layout.js";
+
+function withUserAgent(ua, run) {
+  const original = globalThis.navigator;
+  Object.defineProperty(globalThis, "navigator", {
+    value: { userAgent: ua },
+    configurable: true
+  });
+  try {
+    return run();
+  } finally {
+    Object.defineProperty(globalThis, "navigator", { value: original, configurable: true });
+  }
+}
+
+test("認得出 LINE 的內建瀏覽器", () => {
+  const ua = "Mozilla/5.0 (Linux; Android 12; GM1910 Build/SKQ1.211113.001; wv) "
+    + "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/150.0.7871.46 "
+    + "Mobile Safari/537.36 Line/26.11.0/IAB";
+  assert.equal(withUserAgent(ua, inAppBrowserName), "LINE");
+});
+
+test("認得出其他常見的內建瀏覽器", () => {
+  assert.equal(withUserAgent("... [FBAN/FBIOS;FBAV/450.0]", inAppBrowserName), "Facebook");
+  assert.equal(withUserAgent("... Instagram 300.0.0.0 Android", inAppBrowserName), "Instagram");
+});
+
+test("一般瀏覽器不會被誤判", () => {
+  const chrome = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 "
+    + "(KHTML, like Gecko) Chrome/150.0.0.0 Mobile Safari/537.36";
+  const safari = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+    + "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+  assert.equal(withUserAgent(chrome, inAppBrowserName), null);
+  assert.equal(withUserAgent(safari, inAppBrowserName), null);
+});
+
+test("沒有 navigator 時不會炸掉", () => {
+  assert.equal(withUserAgent(undefined, inAppBrowserName), null);
+});
