@@ -56,12 +56,18 @@ export function usesRelativePointerMovement(pointerType) {
 /**
  * Names the messaging app whose in-app browser we're running inside, or null.
  *
- * These WebViews cost the player real screen area — LINE's non-retracting
- * header leaves roughly 47px less than Chrome on the same phone, and since the
- * shell derives its width from available height, the whole game renders about
- * 9% smaller — and they block fullscreen outright, so there is no way to win
- * that space back from inside. Worth telling the player they have a better
- * option rather than letting them assume this is how the game looks.
+ * These WebViews cost the player real screen area even when fullscreen works
+ * fine — LINE's non-retracting header leaves roughly 47px less than Chrome on
+ * the same phone, and since the shell derives its width from available
+ * height, the whole game renders about 9% smaller outside of fullscreen.
+ *
+ * Fullscreen itself is NOT reliably blocked by these WebViews — LINE's has
+ * been confirmed to support it (document.fullscreenEnabled is true there, and
+ * tapping the button works). Whether a specific host actually allows it is a
+ * separate, real-time check (see fullscreenViewState() in main.js); this
+ * function only identifies which app the player is in, so the menu can point
+ * them at the fullscreen button as the fix rather than assuming they need to
+ * leave the app entirely.
  */
 export function inAppBrowserName() {
   const ua = globalThis.navigator?.userAgent || "";

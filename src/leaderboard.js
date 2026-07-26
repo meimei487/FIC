@@ -14,6 +14,34 @@ const SUPABASE_KEY = "sb_publishable_rVOZ3Nugw92TGlIdRDr_sQ_ZchTtyID";
 export const LEADERBOARD_ENABLED = Boolean(SUPABASE_KEY);
 export const NICKNAME_MAX = 16;
 
+// Must mirror the check constraints in supabase-schema.sql. These exist to
+// reject absurd garbage, not to bound real play — the game is an endless
+// grinder, so score in particular is set far above any achievement target.
+// Checking client-side before upload means a run that somehow exceeds one of
+// these gets a specific, honest message instead of a generic "check your
+// connection" after Supabase silently rejects the insert.
+export const LEADERBOARD_LIMITS = Object.freeze({
+  score: 2_000_000_000,
+  bossKills: 1000,
+  clearSeconds: 36000
+});
+
+/**
+ * Which of this attempt's values exceed the database's check constraints, if
+ * any. Returns an array of Chinese labels (empty if everything is within
+ * bounds) rather than a boolean, so the caller can name the specific field(s)
+ * instead of a vague failure.
+ */
+export function exceedsLeaderboardLimits({ score, bossKills, clearSeconds }) {
+  const reasons = [];
+  if (Number(score) > LEADERBOARD_LIMITS.score) reasons.push("總分");
+  if (Number(bossKills) > LEADERBOARD_LIMITS.bossKills) reasons.push("Boss擊殺數");
+  if (Number.isFinite(clearSeconds) && clearSeconds > LEADERBOARD_LIMITS.clearSeconds) {
+    reasons.push("通關時間");
+  }
+  return reasons;
+}
+
 // Three separate boards. Each view already dedupes to one row per client_id,
 // so a player's best score, fastest clear and highest boss count can each
 // surface independently — they do not have to come from the same run.

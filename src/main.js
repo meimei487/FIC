@@ -24,6 +24,7 @@ import {
   serializeRun
 } from "./game/state.js";
 import {
+  exceedsLeaderboardLimits,
   fetchLeaderboard,
   fetchRank,
   isPersonalRecord,
@@ -575,9 +576,15 @@ class FirestormApp {
         this.profile.fullscreenPreferred = false;
         saveProfile(this.profile);
       }
-      // Deliberately does not suggest retrying: in an in-app browser it will
-      // fail every time, and telling the player to try again just wastes their
-      // time. Point them at the way out instead.
+      // Does not suggest retrying: this branch only fires when the browser
+      // itself reports fullscreen as genuinely disabled (document.fullscreenEnabled
+      // === false), which is a real, checked fact rather than a guess — retrying
+      // the same call would fail the same way. This is NOT a blanket assumption
+      // about in-app browsers as a category; LINE's in-app browser, for example,
+      // has been confirmed to support fullscreen fine and would never reach this
+      // branch. When it does fire for an in-app browser, that specific host
+      // really doesn't allow it, so pointing at an external browser is the
+      // honest way out rather than a generic "try again".
       if (!silent) {
         this.showToast(inAppBrowserName()
           ? "此瀏覽器不允許全螢幕，建議改用外部瀏覽器開啟"
@@ -827,6 +834,16 @@ class FirestormApp {
     // Beating nothing is still allowed — just confirm it was intentional.
     if (!isPersonalRecord(this.profile.leaderboardBest, attempt)
       && !globalThis.confirm("這把的分數、通關時間、Boss擊殺數都沒有突破你自己的紀錄，仍要上傳嗎？")) {
+      return;
+    }
+
+    // Checked before sending: the database rejects values past these bounds,
+    // and without this check the player would just see a generic "check your
+    // connection" after Supabase silently refused the insert — a misleading
+    // message for what is actually a rejected-value problem, not a network one.
+    const exceeded = exceedsLeaderboardLimits(attempt);
+    if (exceeded.length) {
+      this.showToast(`${exceeded.join("、")}超出排行榜可接受範圍，這筆成績無法上傳`);
       return;
     }
 

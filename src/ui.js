@@ -39,6 +39,23 @@ function clearTime(seconds) {
   return `${minutes}:${String(rest).padStart(2, "0")}`;
 }
 
+// Leaderboard nicknames are self-reported by any client that can reach the
+// Supabase REST endpoint directly — sanitizeNickname() in leaderboard.js only
+// runs in THIS game's JS, so it does not stop someone from POSTing a hostile
+// nickname straight to the API. The schema only checks length (1-16 chars),
+// nothing about content. Every row we render here is untrusted input that
+// ends up in innerHTML, so it must be escaped at render time regardless of
+// what already ran client-side before upload.
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
 function selectedCommander(profile, run) {
   return COMMANDERS[run?.commander || profile.selected] || COMMANDERS.viper;
 }
@@ -635,7 +652,7 @@ export function renderResult(profile, run) {
       <div class="result-leaderboard">
         ${clearNote}
         <label for="nickname-input">暱稱（給排行榜用，最多16字）</label>
-        <input id="nickname-input" name="nickname" maxlength="16" placeholder="輸入暱稱" value="${profile.nickname || ""}" />
+        <input id="nickname-input" name="nickname" maxlength="16" placeholder="輸入暱稱" value="${escapeHtml(profile.nickname)}" />
         ${actionButton("submit-score", "上傳成績到排行榜", "secondary")}
         <p class="result-leaderboard-note">排行榜是玩家自行回報成績，沒有防作弊機制，純粹好玩。</p>
       </div>`
@@ -681,7 +698,7 @@ function renderLeaderboardRow(entry, index, category, clientId) {
   return `
     <div class="leaderboard-row${mine ? " mine" : ""}">
       <span class="leaderboard-rank">${index + 1}</span>
-      <span class="leaderboard-name">${entry.nickname}${mine ? " <em>（你）</em>" : ""}</span>
+      <span class="leaderboard-name">${escapeHtml(entry.nickname)}${mine ? " <em>（你）</em>" : ""}</span>
       ${commander ? `<span class="leaderboard-commander" style="color:${commander.color}">${commander.callsign}</span>` : ""}
       ${value}
       ${victoryMark}
