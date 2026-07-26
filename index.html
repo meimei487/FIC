@@ -55,15 +55,88 @@
             max-width: 260px;
             line-height: 1.6;
           }
+          #boot-loading .boot-bar {
+            width: 210px;
+            height: 3px;
+            background: #66e8ee26;
+            overflow: hidden;
+          }
+          #boot-loading .boot-bar i {
+            display: block;
+            width: 0%;
+            height: 100%;
+            background: #66e8ee;
+            box-shadow: 0 0 10px #66e8ee;
+            transition: width 0.4s linear;
+          }
+          #boot-loading .boot-elapsed {
+            color: #66e8ee;
+            font: 800 10px ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: 0.08em;
+          }
           @keyframes boot-spin {
             to { transform: rotate(360deg); }
           }
         </style>
         <div class="boot-spinner" aria-hidden="true"></div>
         <strong>火線暴走：鋼鐵縱隊</strong>
-        <span>檔案下載中，請稍候…<br />遊戲含完整配樂，體積較大，第一次載入可能需要一點時間</span>
+        <div class="boot-bar" aria-hidden="true"><i id="boot-bar-fill"></i></div>
+        <div class="boot-elapsed" id="boot-elapsed">已等待 0 秒</div>
+        <span id="boot-message">檔案下載中，請稍候…<br />遊戲含完整配樂，體積較大，第一次載入可能需要一點時間</span>
       </div>
     </div>
+    <script>
+      /*
+        Keeps the loading screen visibly alive while the browser streams the
+        rest of the document.
+
+        This is a classic (non-module) script placed immediately after the
+        markup on purpose: it runs the moment the parser reaches it, which is
+        long before the giant inline module below has finished downloading.
+
+        The bar is driven by elapsed time, not bytes. Everything — code, art,
+        audio — is inlined into a single script tag, so there is no separate
+        resource to attach a progress listener to; the browser is streaming the
+        document itself and nothing here can observe how far along it is. The
+        curve therefore eases toward the end and never claims to be finished,
+        which is honest about being an estimate. The elapsed counter next to it
+        is exact, and that is what actually reassures someone that the page has
+        not frozen.
+      */
+      (function () {
+        var started = Date.now();
+        var stages = [
+          { after: 20, text: "配樂檔案較大，仍在下載中…" },
+          { after: 45, text: "連線較慢時可能需要 1-2 分鐘，請保持這個頁面開啟" },
+          { after: 90, text: "仍在下載中。若長時間沒有變化，請檢查網路連線後重新整理" }
+        ];
+        var timer = setInterval(function () {
+          var elapsed = document.getElementById("boot-elapsed");
+          var fill = document.getElementById("boot-bar-fill");
+          // The app replaces #root when it mounts, so these disappear on their
+          // own — that is the signal to stop rather than keep firing on nulls.
+          if (!elapsed || !fill) {
+            clearInterval(timer);
+            return;
+          }
+          var seconds = Math.floor((Date.now() - started) / 1000);
+          elapsed.textContent = "已等待 " + seconds + " 秒";
+          // Asymptotic: fast at first, then slower, capped at 92% so it never
+          // sits at "100%" while still loading.
+          fill.style.width = (92 * (1 - Math.exp(-seconds / 18))).toFixed(1) + "%";
+          for (var i = stages.length - 1; i >= 0; i -= 1) {
+            if (seconds >= stages[i].after) {
+              var message = document.getElementById("boot-message");
+              if (message && message.getAttribute("data-stage") !== String(i)) {
+                message.setAttribute("data-stage", String(i));
+                message.textContent = stages[i].text;
+              }
+              break;
+            }
+          }
+        }, 1000);
+      })();
+    </script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
