@@ -278,3 +278,62 @@ test("六個戰區各自有專屬場地機制，沒有一區是空的", () => {
 test("戰區難度由低到高排列，第一區從 0 起算", () => {
   assert.deepEqual(ZONES.map((zone) => zone.difficulty), [0, 1, 2, 3, 4, 5]);
 });
+
+import { exceedsLeaderboardLimits, LEADERBOARD_LIMITS } from "../src/leaderboard.js";
+
+test("排行榜暱稱含HTML特殊字元時會被逃逸，不會被瀏覽器當成標籤", () => {
+  const malicious = entry({ nickname: '<img src=x onerror="alert(1)">' });
+  const html = renderLeaderboard([malicious], "score");
+  assert.doesNotMatch(html, /<img/);
+  assert.match(html, /&lt;img/);
+});
+
+test("暱稱中的雙引號與單引號也會被逃逸", () => {
+  const malicious = entry({ nickname: `a"b'c` });
+  const html = renderLeaderboard([malicious], "score");
+  assert.match(html, /a&quot;b&#39;c/);
+});
+
+test("正常暱稱不受escape影響，中文與一般符號照常顯示", () => {
+  const normal = entry({ nickname: "縱隊指揮官87" });
+  const html = renderLeaderboard([normal], "score");
+  assert.match(html, /縱隊指揮官87/);
+});
+
+test("結算畫面的暱稱輸入框value也會被逃逸", () => {
+  const profile = createProfile();
+  profile.nickname = "老兵";
+  const html = renderResult(profile, sampleRun());
+  assert.match(html, /value="老兵"/);
+});
+
+test("三個上限值與資料庫schema一致", () => {
+  assert.equal(LEADERBOARD_LIMITS.score, 2_000_000_000);
+  assert.equal(LEADERBOARD_LIMITS.bossKills, 1000);
+  assert.equal(LEADERBOARD_LIMITS.clearSeconds, 36000);
+});
+
+test("數值都在範圍內時不會被標記超出", () => {
+  assert.deepEqual(exceedsLeaderboardLimits({ score: 5000, bossKills: 3, clearSeconds: 700 }), []);
+});
+
+test("分數超出上限會被指名", () => {
+  const reasons = exceedsLeaderboardLimits({ score: 3_000_000_000, bossKills: 3, clearSeconds: 700 });
+  assert.deepEqual(reasons, ["總分"]);
+});
+
+test("Boss擊殺數超出上限會被指名", () => {
+  const reasons = exceedsLeaderboardLimits({ score: 5000, bossKills: 1001, clearSeconds: 700 });
+  assert.deepEqual(reasons, ["Boss擊殺數"]);
+});
+
+test("通關時間超出上限會被指名，未通關(clearSeconds為null)不受影響", () => {
+  const reasons = exceedsLeaderboardLimits({ score: 5000, bossKills: 3, clearSeconds: 40000 });
+  assert.deepEqual(reasons, ["通關時間"]);
+  assert.deepEqual(exceedsLeaderboardLimits({ score: 5000, bossKills: 3, clearSeconds: null }), []);
+});
+
+test("多項同時超出上限時，會全部列出", () => {
+  const reasons = exceedsLeaderboardLimits({ score: 3_000_000_000, bossKills: 1001, clearSeconds: 700 });
+  assert.deepEqual(reasons, ["總分", "Boss擊殺數"]);
+});
