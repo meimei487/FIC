@@ -1739,28 +1739,6 @@ button:disabled {
 }
 
 @media (height <= 640px) {
-  /* Systemic fix, not per-screen: every screen built on .overlay inherits
-   * overflow:hidden with vertical centering from the base class (in
-   * generated/legacy.css, not to be hand-edited). On a short viewport — LINE's
-   * in-app browser measured ~500px tall on a phone where a normal browser gets
-   * ~548-604px — any screen whose content doesn't fit becomes silently
-   * unreachable: nothing scrolls, and centered overflow clips symmetrically
-   * from both edges rather than letting you scroll to the top.
-   *
-   * .menu, .result, and .leaderboard already carry this fix unconditionally
-   * (their content is long enough to want it on any viewport). Applying it
-   * here for every other .overlay screen at this breakpoint means a
-   * confirmation dialog or achievements screen added later doesn't have to
-   * remember to opt in — it's covered by default.
-   */
-  .overlay {
-    justify-content: flex-start;
-    overflow-y: auto;
-    scrollbar-width: none;
-  }
-  .overlay::-webkit-scrollbar { display: none; }
-  .overlay > * { flex-shrink: 0; }
-
   .support-action { min-height: 30px; }
   .support-dock { gap: 3px; }
   .safe-ring { width: 104px; height: 104px; margin-bottom: 10px; }
@@ -2094,7 +2072,10 @@ html:-webkit-full-screen .game-shell {
  *
  * 讓它改為由上往下排列、可捲動，並禁止項目被壓縮。 */
 .menu {
-  justify-content: flex-start;
+  /* 原始設計是置中的（繼承 .overlay 的 center）。先前為了修 LINE 未全螢幕時
+   * 的疊字問題改成 flex-start，那是在還沒有 safe center 之前的折衷做法，代價
+   * 是高視窗下也失去置中。現在交給基底類別的 safe center 處理即可：裝得下就
+   * 置中、裝不下才頂端對齊，兩種情況都正確。 */
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -2104,5 +2085,40 @@ html:-webkit-full-screen .game-shell {
 }
 
 .menu > * {
+  flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------- *
+ * Overlay 畫面的溢出處理（無條件套用，不綁高度斷點）
+ * ---------------------------------------------------------------- */
+
+/* .overlay 基底類別（在 generated/legacy.css 內，不手動編輯）帶有
+ * overflow:hidden 與 justify-content:center。內容一旦超出容器就無法捲動，
+ * 而且置中溢出會從上下兩端同時裁掉——連捲到頂端看標題都做不到。
+ *
+ * 這個問題跟視窗多高無關，只跟「內容裝不裝得下」有關，所以不能綁高度斷點：
+ * LINE 一般模式約 500px 會中，全螢幕約 694px 同樣會中（刪除確認頁那種長內容
+ * 在 694px 一樣裝不下），先前綁 @media (height <= 640px) 反而讓全螢幕失去修正。
+ *
+ * justify-content 的兩行是漸進增強：
+ *   - flex-start 是後備，舊瀏覽器不支援 safe 時至少能捲、內容從頂端開始
+ *   - safe center 支援時，內容裝得下就照原本置中（外觀完全不變），
+ *     裝不下才自動退回頂端對齊，確保捲得到最上面
+ *
+ * overflow-y:auto 只在真的溢出時才產生捲動，裝得下的畫面外觀零變化。 */
+.overlay {
+  justify-content: flex-start;
+  justify-content: safe center;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.overlay::-webkit-scrollbar {
+  display: none;
+}
+
+/* 防止 flex 項目被壓縮到比自身內容還矮，那會讓文字溢出自己的框、疊到下一個
+ * 元素上（先前 LINE 未全螢幕時選單疊字就是這個原因）。 */
+.overlay > * {
   flex-shrink: 0;
 }
