@@ -1855,3 +1855,189 @@ html:-webkit-full-screen .game-shell {
     height: var(--control-deck-height);
   }
 }
+
+/* ---------------------------------------------------------------- *
+ * Leaderboard
+ * ---------------------------------------------------------------- */
+
+/* The upload block makes the result screen taller than the shell on small
+ * phones, which pushed 返回集結區 off the bottom edge. Anchor to the top and
+ * let it scroll instead of centring. */
+.result {
+  justify-content: flex-start;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-bottom: 6%;
+}
+
+.result::-webkit-scrollbar {
+  display: none;
+}
+
+.result-leaderboard {
+  width: 100%;
+  border-top: 1px solid #ffffff1a;
+  margin: 0 0 14px;
+  padding: 14px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.result-leaderboard label {
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.result-leaderboard input {
+  width: 87%;
+  background: #0a1517c7;
+  border: 1px solid color-mix(in srgb, var(--cyan), transparent 55%);
+  color: var(--ink);
+  font-size: 12px;
+  padding: 9px 11px;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.result-leaderboard input:focus {
+  outline: none;
+  border-color: var(--cyan);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--cyan), transparent 65%);
+}
+
+.result-leaderboard-note {
+  color: #708582;
+  font-size: 7px;
+  line-height: 1.5;
+  max-width: 260px;
+  margin: 0;
+}
+
+.leaderboard {
+  background: radial-gradient(circle at 50% 8%, #47dcda21, transparent 34%), #060d0ff5;
+  justify-content: flex-start;
+  padding: 9% 6% 4%;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.leaderboard::-webkit-scrollbar {
+  display: none;
+}
+
+.leaderboard h2 {
+  margin: 7px 0 16px;
+  font-size: 26px;
+  font-style: italic;
+}
+
+.leaderboard-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  width: 100%;
+}
+
+.leaderboard-tab {
+  flex: 1;
+  background: #0a1517c7;
+  border: 1px solid #84aaa82b;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  padding: 8px 4px;
+  cursor: pointer;
+}
+
+.leaderboard-tab.active {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan), transparent 88%);
+}
+
+.leaderboard-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.leaderboard-empty {
+  color: var(--muted);
+  font-size: 10px;
+  padding: 30px 0;
+}
+
+.leaderboard-row {
+  text-align: left;
+  background: #0a1517c7;
+  border: 1px solid #84aaa82b;
+  display: grid;
+  grid-template-columns: 22px 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 7px 11px;
+}
+
+.leaderboard-row:nth-child(-n + 3) {
+  border-color: color-mix(in srgb, var(--gold), transparent 45%);
+}
+
+.leaderboard-row.mine {
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--cyan), transparent 70%);
+}
+
+.leaderboard-row.mine .leaderboard-name em {
+  color: var(--cyan);
+  font-style: normal;
+  font-size: 8px;
+}
+
+.leaderboard-rank {
+  color: var(--muted);
+  font: 900 11px ui-monospace, monospace;
+}
+
+.leaderboard-row:nth-child(-n + 3) .leaderboard-rank {
+  color: var(--gold);
+}
+
+.leaderboard-name {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-commander {
+  font-size: 8px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.leaderboard-score {
+  color: var(--cyan);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.leaderboard-victory {
+  color: var(--gold);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  grid-column: 1 / -1;
+  text-align: right;
+}

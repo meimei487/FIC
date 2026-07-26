@@ -24,11 +24,19 @@ import {
   zoneForRun
 } from "./config.js";
 import { ART } from "./generated/art.js";
+import { LEADERBOARD_ENABLED } from "./leaderboard.js";
 import { commanderBattleCount, commanderMilestoneCount, commanderSkillCount, researchMedalCount } from "./storage.js";
 import { effectiveArmor, effectiveWeaponLevel, protocolForRun } from "./game/state.js";
 
 function number(value) {
   return Math.floor(value || 0).toLocaleString();
+}
+
+function clearTime(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  const minutes = Math.floor(total / 60);
+  const rest = total % 60;
+  return `${minutes}:${String(rest).padStart(2, "0")}`;
 }
 
 function selectedCommander(profile, run) {
@@ -72,6 +80,7 @@ export function renderMenu(profile, { fullscreenSupported = true, fullscreenActi
       <div class="menu-actions">
         <button data-action="armory">指揮中心</button>
         <button data-action="achievements">戰績成就</button>
+        ${LEADERBOARD_ENABLED ? '<button data-action="open-leaderboard">排行榜</button>' : ""}
         <button data-action="toggle-audio">${profile.audio ? "聲音 ON" : "聲音 OFF"}</button>
         ${fullscreenSupported
           ? `<button class="menu-fullscreen-toggle" data-action="toggle-fullscreen" aria-pressed="${fullscreenActive}">${fullscreenActive ? "退出全螢幕" : "全螢幕"}</button>`
@@ -606,6 +615,22 @@ export function renderResult(profile, run) {
   const weapon = WEAPONS[run.weapon.id];
   const protocol = protocolForRun(run);
   const effectiveLevel = effectiveWeaponLevel(run);
+  // Only shown on the run that first cleared Moloch — the clear is recorded at
+  // that moment but the run keeps going, so this can appear on a run that later
+  // ended in defeat.
+  const clearNote = run.firstClearAchieved
+    ? `<p class="result-leaderboard-note">✓ 本局已首次擊破 Moloch・速通耗時 ${clearTime(run.firstClearElapsed)}，上傳成績會一併記錄進「最快通關」排行榜。</p>`
+    : "";
+  const leaderboardBlock = LEADERBOARD_ENABLED
+    ? `
+      <div class="result-leaderboard">
+        ${clearNote}
+        <label for="nickname-input">暱稱（給排行榜用，最多16字）</label>
+        <input id="nickname-input" name="nickname" maxlength="16" placeholder="輸入暱稱" value="${profile.nickname || ""}" />
+        ${actionButton("submit-score", "上傳成績到排行榜", "secondary")}
+        <p class="result-leaderboard-note">排行榜是玩家自行回報成績，沒有防作弊機制，純粹好玩。</p>
+      </div>`
+    : "";
   return `
     <div class="result overlay">
       <div class="result-mark">×</div>
@@ -618,7 +643,63 @@ export function renderResult(profile, run) {
         <div><span>軍備入庫</span><b>◆${number(run.resultCredits)}</b></div>
       </div>
       <div class="result-loadout"><span style="color:${commander.color}">${commander.callsign}</span><b>${weapon.name}</b><em>LV.${effectiveLevel >= WEAPON_MAX_LEVEL ? "MAX" : effectiveLevel}・${protocol.name}</em></div>
+      ${leaderboardBlock}
       ${actionButton("new-run", "開始新一輪")}
+      ${actionButton("menu", "返回集結區", "ghost")}
+    </div>`;
+}
+
+const LEADERBOARD_TABS = [
+  { id: "score", label: "總分" },
+  { id: "fastest", label: "最快通關" },
+  { id: "bosskills", label: "Boss擊殺" }
+];
+
+function renderLeaderboardRow(entry, index, category, clientId) {
+  const commander = entry.commander && COMMANDERS[entry.commander];
+  const mine = Boolean(clientId) && entry.client_id === clientId;
+  const victoryMark = entry.victory
+    ? `<span class="leaderboard-victory" title="通關成績">✓ 破關${entry.clear_seconds != null ? `・${clearTime(entry.clear_seconds)}` : ""}</span>`
+    : "";
+  let value;
+  if (category === "fastest") {
+    value = `<span class="leaderboard-score">${entry.clear_seconds != null ? clearTime(entry.clear_seconds) : "—"}</span>`;
+  } else if (category === "bosskills") {
+    value = `<span class="leaderboard-score">${number(entry.boss_kills)}</span>`;
+  } else {
+    value = `<span class="leaderboard-score">${number(entry.score)}</span>`;
+  }
+  return `
+    <div class="leaderboard-row${mine ? " mine" : ""}">
+      <span class="leaderboard-rank">${index + 1}</span>
+      <span class="leaderboard-name">${entry.nickname}${mine ? " <em>（你）</em>" : ""}</span>
+      ${commander ? `<span class="leaderboard-commander" style="color:${commander.color}">${commander.callsign}</span>` : ""}
+      ${value}
+      ${victoryMark}
+    </div>`;
+}
+
+/**
+ * entries === null means the fetch failed; an empty array means nobody has
+ * submitted yet. The two states read very differently to a player, so they get
+ * separate messages.
+ */
+export function renderLeaderboard(entries, category = "score", clientId = null) {
+  let list;
+  if (entries === null) {
+    list = '<p class="leaderboard-empty">排行榜載入失敗，請檢查網路連線後重試。</p>';
+  } else if (entries.length) {
+    list = entries.map((entry, index) => renderLeaderboardRow(entry, index, category, clientId)).join("");
+  } else {
+    list = '<p class="leaderboard-empty">目前還沒有人上榜，快去打出第一筆成績。</p>';
+  }
+  return `
+    <div class="leaderboard overlay">
+      <div class="eyebrow">GLOBAL RANKING</div>
+      <h2>排行榜</h2>
+      <div class="leaderboard-tabs">${LEADERBOARD_TABS.map((tab) => `<button class="leaderboard-tab${tab.id === category ? " active" : ""}" data-action="leaderboard-category" data-category="${tab.id}">${tab.label}</button>`).join("")}</div>
+      <div class="leaderboard-list">${list}</div>
+      ${actionButton("refresh-leaderboard", "重新整理", "secondary")}
       ${actionButton("menu", "返回集結區", "ghost")}
     </div>`;
 }

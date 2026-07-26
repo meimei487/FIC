@@ -23,6 +23,13 @@ import {
   serializeRun
 } from "./game/state.js";
 import {
+  fetchLeaderboard,
+  fetchRank,
+  isPersonalRecord,
+  sanitizeNickname,
+  submitScore
+} from "./leaderboard.js";
+import {
   addDailyProgress,
   claimDaily,
   claimDailyBonus,
@@ -38,6 +45,7 @@ import {
   renderBriefing,
   renderDataManagement,
   renderHud,
+  renderLeaderboard,
   renderMenu,
   renderPause,
   renderResult,
@@ -71,6 +79,9 @@ class FirestormApp {
     this.mode = "menu";
     this.previousMode = "menu";
     this.achievementTab = "daily";
+    this.leaderboardEntries = null;
+    this.leaderboardSubmitting = false;
+    this.leaderboardCategory = "score";
     this.pointerActive = false;
     this.canvasPointerId = null;
     this.canvasPointerRelative = false;
@@ -345,6 +356,9 @@ class FirestormApp {
     else if (this.mode === "abandon-confirm") html = renderAbandonConfirmation();
     else if (this.mode === "restart-confirm") html = renderRestartConfirmation();
     else if (this.mode === "result") html = renderResult(this.profile, this.resultRun || this.engine.run);
+    else if (this.mode === "leaderboard") {
+      html = renderLeaderboard(this.leaderboardEntries, this.leaderboardCategory, this.profile.leaderboardClientId);
+    }
     this.overlayHost.innerHTML = html;
     this.refreshChrome();
   }
@@ -385,6 +399,10 @@ class FirestormApp {
     else if (action === "restart-run") this.restartRun();
     else if (action === "armory") this.openArmory();
     else if (action === "achievements") this.setMode("achievements");
+    else if (action === "open-leaderboard") this.openLeaderboard();
+    else if (action === "leaderboard-category") this.switchLeaderboardCategory(data.category);
+    else if (action === "refresh-leaderboard") this.loadLeaderboardCategory(this.leaderboardCategory);
+    else if (action === "submit-score") this.handleSubmitScore();
     else if (action === "data-management") this.setMode("data-management");
     else if (action === "request-profile-reset") this.setMode("reset-profile-confirm");
     else if (action === "cancel-profile-reset") this.setMode("data-management");
@@ -750,6 +768,88 @@ class FirestormApp {
     this.toast.textContent = message;
     this.toast.classList.add("show");
     this.toastTimer = setTimeout(() => this.toast.classList.remove("show"), 2400);
+  }
+
+  async openLeaderboard() {
+    this.setMode("leaderboard");
+    await this.loadLeaderboardCategory(this.leaderboardCategory);
+  }
+
+  async switchLeaderboardCategory(category) {
+    if (!category || category === this.leaderboardCategory) return;
+    this.leaderboardCategory = category;
+    await this.loadLeaderboardCategory(category);
+  }
+
+  async loadLeaderboardCategory(category) {
+    const entries = await fetchLeaderboard(category, 20);
+    this.leaderboardEntries = entries;
+    // The player may have navigated away while the request was in flight.
+    if (this.mode === "leaderboard") this.renderMode();
+  }
+
+  async handleSubmitScore() {
+    if (this.leaderboardSubmitting) return;
+    const input = this.overlayHost.querySelector("#nickname-input");
+    const nickname = sanitizeNickname(input?.value);
+    if (!nickname) {
+      this.showToast("請輸入暱稱再上傳成績");
+      return;
+    }
+    const run = this.resultRun || this.engine.run;
+    const victory = Boolean(run.firstClearAchieved);
+    const attempt = {
+      score: run.score,
+      bossKills: run.bossKills,
+      clearSeconds: victory ? run.firstClearElapsed : null,
+      victory
+    };
+    // Beating nothing is still allowed — just confirm it was intentional.
+    if (!isPersonalRecord(this.profile.leaderboardBest, attempt)
+      && !globalThis.confirm("這把的分數、通關時間、Boss擊殺數都沒有突破你自己的紀錄，仍要上傳嗎？")) {
+      return;
+    }
+
+    this.leaderboardSubmitting = true;
+    const clientId = this.profile.leaderboardClientId;
+    const ok = await submitScore({
+      clientId,
+      nickname,
+      score: run.score,
+      bossKills: run.bossKills,
+      commander: run.commander,
+      clearSeconds: attempt.clearSeconds,
+      victory
+    });
+    this.leaderboardSubmitting = false;
+
+    if (!ok) {
+      this.showToast("上傳失敗，請檢查網路連線後再試一次");
+      return;
+    }
+
+    this.profile.nickname = nickname;
+    const best = this.profile.leaderboardBest;
+    const improved = [];
+    if (attempt.score > best.score) improved.push("總分");
+    if (attempt.bossKills > best.bossKills) improved.push("Boss擊殺");
+    if (victory && Number.isFinite(attempt.clearSeconds)
+      && (best.clearSeconds == null || attempt.clearSeconds < best.clearSeconds)) {
+      improved.push("通關時間");
+    }
+    this.profile.leaderboardBest = {
+      score: Math.max(best.score, attempt.score),
+      bossKills: Math.max(best.bossKills, attempt.bossKills),
+      clearSeconds: victory && Number.isFinite(attempt.clearSeconds)
+        ? (best.clearSeconds == null ? attempt.clearSeconds : Math.min(best.clearSeconds, attempt.clearSeconds))
+        : best.clearSeconds
+    };
+    saveProfile(this.profile);
+
+    const rank = await fetchRank("score", clientId);
+    const rankText = rank ? `總分排名第 ${rank} 名` : "已上榜（100名外）";
+    const improvedText = improved.length ? `，刷新了${improved.join("、")}紀錄！` : "";
+    this.showToast(`成績已上傳・${rankText}${improvedText}`);
   }
 }
 
