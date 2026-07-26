@@ -30,3 +30,26 @@ test("載入提示掛在 #root 內，會被應用掛載時自動取代", () => {
   const bootIndex = entryHtml.indexOf('id="boot-loading"');
   assert.ok(rootIndex !== -1 && rootIndex < bootIndex, "#boot-loading 必須在 #root 之內");
 });
+
+test("載入進度腳本排在 module script 之前，才來得及在下載期間執行", () => {
+  const inlineIndex = entryHtml.indexOf("<script>");
+  const moduleIndex = entryHtml.indexOf("<script type=\"module\"");
+  assert.notEqual(inlineIndex, -1, "找不到載入進度的 inline script");
+  assert.ok(
+    inlineIndex < moduleIndex,
+    "進度腳本排到 module script 後面了——下載期間不會執行，載入畫面會整段靜止不動"
+  );
+});
+
+test("載入畫面具備會變動的元素，不是只有轉圈動畫", () => {
+  for (const id of ["boot-bar-fill", "boot-elapsed", "boot-message"]) {
+    assert.ok(entryHtml.includes(`id="${id}"`), `載入畫面缺少 #${id}`);
+  }
+});
+
+test("進度腳本是 classic script，不能加 module 或 defer", () => {
+  const inlineIndex = entryHtml.indexOf("<script>");
+  const tail = entryHtml.slice(inlineIndex, inlineIndex + 200);
+  // module 與 defer 都會延到文件解析完才執行，那時下載早就結束了。
+  assert.doesNotMatch(tail, /type="module"|defer/);
+});
