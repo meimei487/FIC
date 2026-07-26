@@ -48,6 +48,8 @@ v8.5.6 的建置檔本身就是最完整的規格書。壓縮只改了變數名�
 
 從建置檔反推重建，含載入提示區塊。提示刻意放在 module script **之前**——單檔建置會把整個遊戲含音訊內嵌成一個巨大 script，提示若排在後面，瀏覽器得下載完 23MB 才畫得出東西，等於形同虛設。放在前面約 62KB 就能顯示。
 
+這個順序錯了遊戲照樣能跑（只是退回白畫面），一般測試抓不到，所以另外加了 `tests/entry-html.test.js` 專門守它。
+
 **2. 結算畫面手機版可捲動**
 
 排行榜上傳區塊讓結算畫面在小螢幕上超出容器高度，「返回集結區」被裁到畫面外。`.result` 改為 `justify-content: flex-start` + `overflow-y: auto`。
@@ -116,7 +118,7 @@ FIC-main/
 │     ├─ combat.js         戰鬥引擎、Boss、場地機制
 │     ├─ render.js         canvas 繪製
 │     └─ state.js          run 狀態、序列化、存檔遷移
-├─ tests/                  161 個測試，全數通過
+├─ tests/                  164 個測試，全數通過
 └─ scripts/                pack-portable.mjs、extract-legacy.mjs
 ```
 
@@ -124,7 +126,7 @@ FIC-main/
 
 ```bash
 npm install
-npm test                 # 161 tests
+npm test                 # 164 tests
 npm run build            # → dist/index.html
 cp dist/index.html docs/index.html
 git commit && git push   # 等 1-2 分鐘部署，強制重新整理測試
