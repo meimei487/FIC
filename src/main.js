@@ -14,6 +14,7 @@ import { CombatEngine } from "./game/combat.js";
 import { GameRenderer } from "./game/render.js";
 import {
   calculateFullscreenBattleLayout,
+  inAppBrowserName,
   relativeManeuverDelta,
   usesRelativePointerMovement
 } from "./fullscreen-layout.js";
@@ -65,6 +66,7 @@ const FULLSCREEN_REENTRY_ACTIONS = new Set([
   "return-battle"
 ]);
 const FULLSCREEN_BATTLE_MODES = new Set(["playing", "safe-exit", "paused", "retreat-confirm"]);
+
 
 class FirestormApp {
   constructor(root) {
@@ -517,9 +519,20 @@ class FirestormApp {
 
   fullscreenViewState() {
     const target = document.documentElement;
+    // requestFullscreen existing is not the same as fullscreen being allowed.
+    // In-app browsers (LINE, Facebook, Instagram) run a stock WebView where the
+    // method is present but the host app never implemented the callback, so the
+    // call just rejects. document.fullscreenEnabled is the flag that actually
+    // reports whether the document is permitted to go fullscreen — checking the
+    // method alone leaves a visible button that can never work.
+    const hasRequest = Boolean(target?.requestFullscreen || target?.webkitRequestFullscreen);
+    const permitted = document.fullscreenEnabled ?? document.webkitFullscreenEnabled;
     return {
-      fullscreenSupported: Boolean(target?.requestFullscreen || target?.webkitRequestFullscreen),
-      fullscreenActive: Boolean(document.fullscreenElement || document.webkitFullscreenElement)
+      // Undefined means the browser predates the flag; assume allowed there
+      // rather than hiding the button from browsers that would have worked.
+      fullscreenSupported: hasRequest && permitted !== false,
+      fullscreenActive: Boolean(document.fullscreenElement || document.webkitFullscreenElement),
+      inAppBrowser: inAppBrowserName()
     };
   }
 
@@ -557,12 +570,19 @@ class FirestormApp {
     const target = document.documentElement;
     const standardRequest = target?.requestFullscreen;
     const webkitRequest = target?.webkitRequestFullscreen;
-    if (!standardRequest && !webkitRequest) {
+    if (!this.fullscreenViewState().fullscreenSupported) {
       if (remember) {
         this.profile.fullscreenPreferred = false;
         saveProfile(this.profile);
       }
-      if (!silent) this.showToast("目前瀏覽器不支援網頁全螢幕；仍可在戰場相對拖曳操作");
+      // Deliberately does not suggest retrying: in an in-app browser it will
+      // fail every time, and telling the player to try again just wastes their
+      // time. Point them at the way out instead.
+      if (!silent) {
+        this.showToast(inAppBrowserName()
+          ? `${inAppBrowserName()}內建瀏覽器不支援全螢幕，請用外部瀏覽器開啟`
+          : "目前瀏覽器不支援網頁全螢幕；仍可在戰場相對拖曳操作");
+      }
       return false;
     }
     if (remember) {

@@ -52,3 +52,22 @@ export function relativeManeuverDelta(deltaCss, deckWidthCss, sensitivity = MANE
 export function usesRelativePointerMovement(pointerType) {
   return String(pointerType || "").toLowerCase() !== "mouse";
 }
+
+/**
+ * Names the messaging app whose in-app browser we're running inside, or null.
+ *
+ * These WebViews cost the player real screen area — LINE's non-retracting
+ * header leaves roughly 47px less than Chrome on the same phone, and since the
+ * shell derives its width from available height, the whole game renders about
+ * 9% smaller — and they block fullscreen outright, so there is no way to win
+ * that space back from inside. Worth telling the player they have a better
+ * option rather than letting them assume this is how the game looks.
+ */
+export function inAppBrowserName() {
+  const ua = globalThis.navigator?.userAgent || "";
+  if (/\bLine\//i.test(ua)) return "LINE";
+  if (/FBAN|FBAV|FB_IAB/i.test(ua)) return "Facebook";
+  if (/Instagram/i.test(ua)) return "Instagram";
+  if (/\bMessenger\b/i.test(ua)) return "Messenger";
+  return null;
+}

@@ -2041,3 +2041,21 @@ html:-webkit-full-screen .game-shell {
   grid-column: 1 / -1;
   text-align: right;
 }
+
+/* 內建瀏覽器提示：只在 LINE/FB/IG 等 WebView 中出現 */
+.inapp-note {
+  color: #ffc75f;
+  background: #ffbf5412;
+  border: 1px solid #ffc75f4d;
+  font-size: 8px;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  max-width: 84%;
+  margin: 8px 0 0;
+  padding: 7px 10px;
+  text-align: center;
+}
+
+.inapp-note b {
+  color: #ffe0a8;
+}
