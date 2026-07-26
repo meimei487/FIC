@@ -63,3 +63,87 @@ test("每次產生的 client id 都不同", () => {
   assert.equal(ids.size, 50);
   for (const id of ids) assert.match(id, UUID_PATTERN);
 });
+
+import { renderLeaderboard, renderMenu, renderResult } from "../src/ui.js";
+
+function entry(overrides = {}) {
+  return {
+    client_id: "11111111-1111-4111-8111-111111111111",
+    nickname: "測試員",
+    score: 12345,
+    boss_kills: 3,
+    commander: "viper",
+    clear_seconds: 754,
+    victory: true,
+    created_at: "2026-01-01T00:00:00Z",
+    ...overrides
+  };
+}
+
+function sampleRun(overrides = {}) {
+  return {
+    commander: "viper",
+    weapon: { id: "rifle", level: 3 },
+    score: 5000,
+    bossKills: 2,
+    resultCredits: 120,
+    research: {},
+    ...overrides
+  };
+}
+
+test("主選單會提供排行榜入口", () => {
+  assert.match(renderMenu(createProfile()), /data-action="open-leaderboard"/);
+});
+
+test("載入失敗與空榜是兩種不同訊息", () => {
+  assert.match(renderLeaderboard(null), /排行榜載入失敗/);
+  assert.match(renderLeaderboard([]), /目前還沒有人上榜/);
+});
+
+test("排行榜依分類顯示不同數值", () => {
+  const rows = [entry()];
+  assert.match(renderLeaderboard(rows, "score"), /leaderboard-score">12,345</);
+  assert.match(renderLeaderboard(rows, "bosskills"), /leaderboard-score">3</);
+  assert.match(renderLeaderboard(rows, "fastest"), /leaderboard-score">12:34</);
+});
+
+test("最快通關榜沒有時間時顯示破折號", () => {
+  const html = renderLeaderboard([entry({ clear_seconds: null, victory: false })], "fastest");
+  assert.match(html, /leaderboard-score">—</);
+});
+
+test("自己的那一列會被標記出來", () => {
+  const mine = "11111111-1111-4111-8111-111111111111";
+  assert.match(renderLeaderboard([entry()], "score", mine), /leaderboard-row mine/);
+  assert.match(renderLeaderboard([entry()], "score", mine), /（你）/);
+  assert.doesNotMatch(renderLeaderboard([entry()], "score", "22222222-2222-4222-8222-222222222222"), /leaderboard-row mine/);
+});
+
+test("沒有傳入 client id 時不會誤標任何一列", () => {
+  assert.doesNotMatch(renderLeaderboard([entry()], "score", null), /leaderboard-row mine/);
+});
+
+test("目前分類的頁籤會是 active", () => {
+  const html = renderLeaderboard([], "fastest");
+  assert.match(html, /leaderboard-tab active" data-action="leaderboard-category" data-category="fastest"/);
+  assert.match(html, /leaderboard-tab" data-action="leaderboard-category" data-category="score"/);
+});
+
+test("結算畫面帶有暱稱輸入與上傳按鈕，並預填既有暱稱", () => {
+  const profile = createProfile();
+  profile.nickname = "老兵";
+  const html = renderResult(profile, sampleRun());
+  assert.match(html, /id="nickname-input"[^>]*maxlength="16"/);
+  assert.match(html, /value="老兵"/);
+  assert.match(html, /data-action="submit-score"/);
+});
+
+test("首次通關的那一局，結算畫面會提示速通時間會一併上傳", () => {
+  const html = renderResult(createProfile(), sampleRun({ firstClearAchieved: true, firstClearElapsed: 902 }));
+  assert.match(html, /首次擊破 Moloch・速通耗時 15:02/);
+});
+
+test("沒有首次通關就不顯示速通提示", () => {
+  assert.doesNotMatch(renderResult(createProfile(), sampleRun()), /速通耗時/);
+});
