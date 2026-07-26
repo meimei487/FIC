@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { isPersonalRecord, sanitizeNickname, NICKNAME_MAX } from "../src/leaderboard.js";
-import { createClientId, createProfile } from "../src/storage.js";
+import { createClientId, createProfile, loadProfile, saveProfile } from "../src/storage.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -185,4 +185,80 @@ test("積分區段標題不洩漏總共有幾階", () => {
   const html = achievementsHtml(["score10k"]);
   assert.match(html, /積分已達成 1 項/);
   assert.doesNotMatch(html, /積分 1\/1[0-9]/);
+});
+
+class MemoryStorage {
+  constructor(values = {}) { this.values = new Map(Object.entries(values)); }
+  getItem(key) { return this.values.has(key) ? this.values.get(key) : null; }
+  setItem(key, value) { this.values.set(key, String(value)); }
+  removeItem(key) { this.values.delete(key); }
+  key(index) { return [...this.values.keys()][index] ?? null; }
+  get length() { return this.values.size; }
+}
+
+import { pickHazardRounds } from "../src/config.js";
+import { createRun, migrateLegacyRun, serializeRun } from "../src/game/state.js";
+
+test("新對局沒有通關記錄，也沒有場地機制輪次", () => {
+  const run = createRun(createProfile());
+  assert.equal(run.firstClearAchieved, false);
+  assert.equal(run.firstClearElapsed, null);
+  assert.deepEqual(run.hazardRoundPicks, []);
+});
+
+test("通關記錄與場地輪次會存進檢查點", () => {
+  const run = createRun(createProfile());
+  run.firstClearAchieved = true;
+  run.firstClearElapsed = 842;
+  run.hazardRoundPicks = [0, 2];
+  const saved = serializeRun(run);
+  assert.equal(saved.firstClearAchieved, true);
+  assert.equal(saved.firstClearElapsed, 842);
+  assert.deepEqual(saved.hazardRoundPicks, [0, 2]);
+});
+
+test("讀取舊存檔時通關欄位有安全預設值", () => {
+  const profile = createProfile();
+  const restored = migrateLegacyRun({ bossKills: 2, score: 100 }, profile);
+  assert.equal(restored.firstClearAchieved, false);
+  assert.equal(restored.firstClearElapsed, null);
+  assert.deepEqual(restored.hazardRoundPicks, []);
+});
+
+test("損壞的通關時間會被丟掉而不是照單全收", () => {
+  const profile = createProfile();
+  const restored = migrateLegacyRun({ firstClearElapsed: "壞掉的值", hazardRoundPicks: "不是陣列" }, profile);
+  assert.equal(restored.firstClearElapsed, null);
+  assert.deepEqual(restored.hazardRoundPicks, []);
+});
+
+test("場地機制輪次抽選出不重複的場次編號", () => {
+  for (const count of [1, 2]) {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const picks = pickHazardRounds(count);
+      assert.equal(picks.length, count);
+      assert.equal(new Set(picks).size, count);
+      for (const slot of picks) assert.ok(slot >= 0 && slot <= 2);
+    }
+  }
+});
+
+test("三選三時涵蓋全部場次", () => {
+  assert.deepEqual([...pickHazardRounds(3)].sort(), [0, 1, 2]);
+});
+
+test("打倒過機甲屠夫的舊存檔會自動視為已畢業", () => {
+  const profile = createProfile();
+  profile.achievements = ["warmachine"];
+  const storage = new MemoryStorage();
+  saveProfile(profile, storage);
+  assert.equal(loadProfile(storage).hazardGraduated, true);
+});
+
+test("沒有機甲屠夫成就的帳號不會被誤判為已畢業", () => {
+  const profile = createProfile();
+  profile.achievements = ["score10k"];
+  const storage = new MemoryStorage();
+  saveProfile(profile, storage);
+  assert.equal(loadProfile(storage).hazardGraduated, false);
 });
