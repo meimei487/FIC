@@ -144,13 +144,27 @@ test("提示不再宣稱內建瀏覽器無法全螢幕", () => {
 
 const stylesCss = readFileSync(fileURLToPath(new URL("../src/styles.css", import.meta.url)), "utf8");
 
-test("矮視窗斷點內，overlay基底類別要能捲動——所有畫面共用，不必逐一補", () => {
-  const mediaBlock = stylesCss.slice(
-    stylesCss.indexOf("@media (height <= 640px)"),
-    stylesCss.indexOf("@media (height <= 640px)") + 2000
-  );
-  assert.match(mediaBlock, /\.overlay\s*\{[^}]*justify-content:\s*flex-start/);
-  assert.match(mediaBlock, /\.overlay\s*\{[^}]*overflow-y:\s*auto/);
+test("overlay的捲動修正不能綁高度斷點——全螢幕時視窗更高，綁斷點反而會失效", () => {
+  // LINE 一般模式約 500px、全螢幕約 694px，兩種情況內容都可能裝不下。
+  // 若把修正寫在 @media (height <= 640px) 裡，全螢幕就拿不到修正。
+  const breakpointStart = stylesCss.indexOf("@media (height <= 640px)");
+  const breakpointEnd = stylesCss.indexOf("\n}", breakpointStart);
+  const insideBreakpoint = stylesCss.slice(breakpointStart, breakpointEnd);
+  assert.doesNotMatch(insideBreakpoint, /\.overlay\s*\{/);
+});
+
+test("overlay在任何視窗高度都能捲動，且用safe center保留原本置中外觀", () => {
+  const rule = stylesCss.match(/\.overlay\s*\{[^}]*\}/g).find((r) => r.includes("overflow-y"));
+  assert.ok(rule, "找不到 .overlay 的捲動規則");
+  assert.match(rule, /overflow-y:\s*auto/);
+  // safe center：裝得下照常置中，裝不下才退回頂端，確保捲得到最上面
+  assert.match(rule, /justify-content:\s*safe center/);
+  // 後備宣告，舊瀏覽器不支援 safe 時至少能捲
+  assert.match(rule, /justify-content:\s*flex-start/);
+});
+
+test("flex項目不可被壓縮，否則文字會溢出自己的框而疊字", () => {
+  assert.match(stylesCss, /\.overlay\s*>\s*\*\s*\{[^}]*flex-shrink:\s*0/);
 });
 
 test("resize事件的處理器名稱不再只更新戰鬥版面，而是完整同步全螢幕狀態", () => {
