@@ -1739,6 +1739,28 @@ button:disabled {
 }
 
 @media (height <= 640px) {
+  /* Systemic fix, not per-screen: every screen built on .overlay inherits
+   * overflow:hidden with vertical centering from the base class (in
+   * generated/legacy.css, not to be hand-edited). On a short viewport — LINE's
+   * in-app browser measured ~500px tall on a phone where a normal browser gets
+   * ~548-604px — any screen whose content doesn't fit becomes silently
+   * unreachable: nothing scrolls, and centered overflow clips symmetrically
+   * from both edges rather than letting you scroll to the top.
+   *
+   * .menu, .result, and .leaderboard already carry this fix unconditionally
+   * (their content is long enough to want it on any viewport). Applying it
+   * here for every other .overlay screen at this breakpoint means a
+   * confirmation dialog or achievements screen added later doesn't have to
+   * remember to opt in — it's covered by default.
+   */
+  .overlay {
+    justify-content: flex-start;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .overlay::-webkit-scrollbar { display: none; }
+  .overlay > * { flex-shrink: 0; }
+
   .support-action { min-height: 30px; }
   .support-dock { gap: 3px; }
   .safe-ring { width: 104px; height: 104px; margin-bottom: 10px; }

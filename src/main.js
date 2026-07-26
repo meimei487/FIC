@@ -283,16 +283,40 @@ class FirestormApp {
       if (key === "escape" && this.mode === "playing") this.handleAction("pause", {});
     });
     globalThis.addEventListener("keyup", (event) => this.keys.delete(event.key.toLowerCase()));
-    const fullscreenChanged = () => {
+
+    // Some in-app WebViews (confirmed with LINE) don't reliably fire
+    // fullscreenchange/webkitfullscreenchange when the player exits fullscreen
+    // via a system gesture (e.g. swiping up from the bottom edge) — only a
+    // resize/visualViewport resize follows. Without this, the battle layout
+    // (driven by updateFullscreenBattleLayout, which always reads fresh state)
+    // would silently correct itself, but the menu/pause chrome — the fullscreen
+    // button label, the in-app-browser note — would stay stuck showing the OLD
+    // state until something else forced a full render. That mismatch (still
+    // full-height layout, but non-fullscreen buttons) is exactly what toggling
+    // fullscreen once more "fixes": it's the first thing afterward to force a
+    // fresh renderMode() call.
+    //
+    // lastFullscreenActive guards against re-rendering the whole overlay on
+    // every ordinary resize (window drag, on-screen keyboard, URL bar
+    // show/hide) where fullscreen genuinely hasn't changed — only refresh the
+    // chrome when the computed state actually flips.
+    let lastFullscreenActive = this.fullscreenViewState().fullscreenActive;
+    const syncFullscreenState = () => {
       this.updateFullscreenBattleLayout();
+      const activeNow = this.fullscreenViewState().fullscreenActive;
+      if (activeNow === lastFullscreenActive) return;
+      lastFullscreenActive = activeNow;
       if (["menu", "paused"].includes(this.mode)) this.renderMode();
       else this.refreshChrome();
+    };
+    const fullscreenChanged = () => {
+      syncFullscreenState();
       globalThis.requestAnimationFrame(() => this.updateFullscreenBattleLayout());
     };
     document.addEventListener("fullscreenchange", fullscreenChanged);
     document.addEventListener("webkitfullscreenchange", fullscreenChanged);
-    globalThis.addEventListener("resize", () => this.updateFullscreenBattleLayout());
-    globalThis.visualViewport?.addEventListener("resize", () => this.updateFullscreenBattleLayout());
+    globalThis.addEventListener("resize", syncFullscreenState);
+    globalThis.visualViewport?.addEventListener("resize", syncFullscreenState);
     globalThis.addEventListener("blur", () => {
       this.cancelProfileResetHold();
       this.pointerActive = false;
