@@ -1,5 +1,5 @@
 export const VERSION = 8;
-export const BUILD_VERSION = "8.5.3";
+export const BUILD_VERSION = "8.5.6";
 export const WIDTH = 390;
 export const HEIGHT = 693;
 export const FORMATION_Y = 535;
@@ -191,7 +191,7 @@ export const ZONES = [
     top: "#54717b",
     bottom: "#172b31",
     accent: "#6eeeff",
-    hazard: null,
+    hazard: "shore-barrage",
     difficulty: 0
   },
   {
@@ -202,7 +202,7 @@ export const ZONES = [
     top: "#8b5636",
     bottom: "#2b1d1b",
     accent: "#ffc05f",
-    hazard: null,
+    hazard: "armor-barrage",
     difficulty: 1
   },
   {
@@ -213,7 +213,7 @@ export const ZONES = [
     top: "#364352",
     bottom: "#111823",
     accent: "#ff6b78",
-    hazard: null,
+    hazard: "air-superiority",
     difficulty: 2
   },
   {
