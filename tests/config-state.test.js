@@ -237,10 +237,10 @@ test("十全指揮不再重複出現在永久戰場勳章，連殺系列固定�
   );
 });
 
-test("積分成就採十階里程碑，十位指揮官各有技能實戰成就", () => {
+test("積分成就採十二階里程碑（含兩階隱藏天花板），十位指揮官各有技能實戰成就", () => {
   assert.deepEqual(
     BATTLE_ACHIEVEMENTS.filter((achievement) => achievement.scoreTarget).map((achievement) => achievement.scoreTarget),
-    [10000, 50000, 100000, 250000, 500000, 1000000, 2500000, 5000000, 10000000, 25000000]
+    [10000, 50000, 100000, 250000, 500000, 1000000, 2500000, 5000000, 10000000, 25000000, 50000000, 100000000]
   );
   assert.deepEqual(
     BATTLE_ACHIEVEMENTS.filter((achievement) => achievement.commanderSkill).map((achievement) => achievement.commanderSkill),

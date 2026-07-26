@@ -147,3 +147,42 @@ test("首次通關的那一局，結算畫面會提示速通時間會一併上�
 test("沒有首次通關就不顯示速通提示", () => {
   assert.doesNotMatch(renderResult(createProfile(), sampleRun()), /速通耗時/);
 });
+
+import { renderAchievements } from "../src/ui.js";
+
+function achievementsHtml(earned = []) {
+  const profile = createProfile();
+  profile.achievements = earned;
+  profile.best = 0;
+  return renderAchievements(profile, "daily");
+}
+
+test("全新帳號只看得到第一階積分里程碑", () => {
+  const html = achievementsHtml([]);
+  assert.match(html, /戰功彪炳/);
+  assert.doesNotMatch(html, /百戰精銳/);
+  assert.doesNotMatch(html, /縱隊神話/);
+});
+
+test("達成前兩階後，露出已達成的加上緊接的下一階", () => {
+  const html = achievementsHtml(["score10k", "score50k"]);
+  assert.match(html, /戰功彪炳/);
+  assert.match(html, /百戰精銳/);
+  assert.match(html, /戰區王牌/);
+  assert.doesNotMatch(html, /高壓適格/);
+});
+
+test("最高階的隱藏天花板要全部達成才會現身", () => {
+  const all = [
+    "score10k", "score50k", "score100k", "score250k", "score500k", "score1m",
+    "score2500k", "score5m", "score10m", "score25m", "score50m"
+  ];
+  assert.doesNotMatch(achievementsHtml(all.slice(0, 10)), /縱隊神話/);
+  assert.match(achievementsHtml(all), /縱隊神話/);
+});
+
+test("積分區段標題不洩漏總共有幾階", () => {
+  const html = achievementsHtml(["score10k"]);
+  assert.match(html, /積分已達成 1 項/);
+  assert.doesNotMatch(html, /積分 1\/1[0-9]/);
+});
