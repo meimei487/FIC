@@ -580,7 +580,7 @@ class FirestormApp {
       // time. Point them at the way out instead.
       if (!silent) {
         this.showToast(inAppBrowserName()
-          ? `${inAppBrowserName()}內建瀏覽器不支援全螢幕，請用外部瀏覽器開啟`
+          ? "此瀏覽器不允許全螢幕，建議改用外部瀏覽器開啟"
           : "目前瀏覽器不支援網頁全螢幕；仍可在戰場相對拖曳操作");
       }
       return false;

@@ -98,8 +98,8 @@ export function renderMenu(profile, { fullscreenSupported = true, fullscreenActi
       </div>
       ${!hasCheckpoint && allResearchMax(profile) ? `<p class="deployment-note" style="--contract:${protocol.color}">${protocol.name}${queuedMax ? "＋滿級出擊" : ""}｜出擊費 ◆${number(queuedCost)}</p>` : ""}
       ${hasCheckpoint ? `<p class="checkpoint-note">作戰進行中｜${commander.name}已鎖定，結束本輪前不能更換</p>` : ""}
-      ${inAppBrowser
-        ? `<p class="inapp-note">你正在${inAppBrowser}的內建瀏覽器中遊玩，畫面較小且無法全螢幕。<b>用外部瀏覽器開啟可獲得完整畫面</b>（右上角選單 →「以其他瀏覽器開啟」）。</p>`
+      ${inAppBrowser && !fullscreenActive
+        ? `<p class="inapp-note">${inAppBrowser}內建瀏覽器的可視高度較小，介面可能重疊。<b>點上方「全螢幕」即可獲得完整畫面。</b></p>`
         : ""}
       <p class="original-note">原創縱向小隊射擊・六大戰區・三型機甲Boss</p>
     </div>`;

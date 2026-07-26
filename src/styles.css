@@ -2059,3 +2059,28 @@ html:-webkit-full-screen .game-shell {
 .inapp-note b {
   color: #ffe0a8;
 }
+
+/* ---------------------------------------------------------------- *
+ * 選單在矮視窗中的溢出處理
+ * ---------------------------------------------------------------- */
+
+/* .overlay 用 overflow:hidden，內容超出容器時不捲動而是被裁掉，且 flex 項目
+ * 會被壓縮到比自身內容還矮，文字於是溢出自己的框、視覺上疊到下一個元素上。
+ *
+ * 這在內建瀏覽器裡特別明顯：LINE 的標題列收不掉，可視高度比同一支手機上的
+ * Chrome 少約 47px，選單內容是照較高的視窗設計的，於是整個疊在一起。
+ *
+ * 讓它改為由上往下排列、可捲動，並禁止項目被壓縮。 */
+.menu {
+  justify-content: flex-start;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.menu::-webkit-scrollbar {
+  display: none;
+}
+
+.menu > * {
+  flex-shrink: 0;
+}
