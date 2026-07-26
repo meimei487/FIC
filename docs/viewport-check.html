@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#070b0d" />
+    <title>視窗診斷 — 火線暴走</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { margin: 0; background: #070b0d; color: #eaf7f5; }
+      body {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        padding: 16px;
+        line-height: 1.7;
+      }
+      h1 { font-size: 15px; margin: 0 0 4px; color: #66e8ee; letter-spacing: 0.06em; }
+      p.hint { color: #829796; font-size: 11px; margin: 0 0 14px; line-height: 1.6; }
+      table { border-collapse: collapse; width: 100%; margin-bottom: 14px; }
+      td { padding: 5px 6px; border-bottom: 1px solid #ffffff14; vertical-align: top; }
+      td:first-child { color: #829796; white-space: nowrap; width: 42%; }
+      td:last-child { color: #eaf7f5; font-weight: 700; }
+      .bad { color: #ff5f6e !important; }
+      .good { color: #6fffc0 !important; }
+      /* 這一格用來實測 game-shell 在這台裝置上會算成多大 */
+      #probe {
+        width: min(100vw, 56.277dvh);
+        height: min(100dvh, 177.69vw);
+        position: absolute;
+        left: -9999px;
+        top: 0;
+      }
+      #ua { word-break: break-all; color: #829796; font-size: 10px; line-height: 1.6; }
+      button {
+        width: 100%; padding: 11px; margin-top: 6px;
+        background: #66e8ee; color: #071113; border: 0;
+        font: 800 12px ui-monospace, monospace; cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="probe"></div>
+    <h1>視窗診斷</h1>
+    <p class="hint">
+      用同一支手機分別從 LINE 點開、以及貼到瀏覽器網址列開啟，比對兩邊的數字。
+      差在哪一行，問題就在哪裡。
+    </p>
+
+    <table id="out"></table>
+
+    <div id="ua"></div>
+    <button onclick="copyAll()">複製全部結果</button>
+
+    <script>
+      function px(value) {
+        return Number.isFinite(value) ? Math.round(value * 100) / 100 + "px" : "—";
+      }
+
+      function measureUnit(unit) {
+        // 直接讓瀏覽器算，不支援的單位會回傳 0 或空字串
+        var probe = document.createElement("div");
+        probe.style.cssText = "position:absolute;left:-9999px;top:0;height:100" + unit + ";";
+        document.body.appendChild(probe);
+        var height = probe.getBoundingClientRect().height;
+        document.body.removeChild(probe);
+        return height;
+      }
+
+      var supportsDvh = CSS.supports("height", "100dvh");
+      var shell = document.getElementById("probe").getBoundingClientRect();
+
+      var rows = [
+        ["螢幕實體", screen.width + " × " + screen.height],
+        ["devicePixelRatio", window.devicePixelRatio],
+        ["innerWidth / Height", window.innerWidth + " × " + window.innerHeight],
+        ["visualViewport", window.visualViewport
+          ? Math.round(window.visualViewport.width) + " × " + Math.round(window.visualViewport.height)
+          : "不支援"],
+        ["支援 dvh 單位", supportsDvh ? "是" : "否 ← 版面會壞"],
+        ["100vh 實測", px(measureUnit("vh"))],
+        ["100dvh 實測", px(measureUnit("dvh"))],
+        ["100svh 實測", px(measureUnit("svh"))],
+        ["100lvh 實測", px(measureUnit("lvh"))],
+        ["game-shell 實算", px(shell.width) + " × " + px(shell.height)],
+        ["safe-area 上／下", getComputedStyle(document.documentElement).getPropertyValue("--sat") || "見下"],
+        ["直向／橫向", window.innerWidth < window.innerHeight ? "直向" : "橫向"],
+        ["是否在 iframe 內", window.top === window.self ? "否" : "是"]
+      ];
+
+      var table = document.getElementById("out");
+      rows.forEach(function (row) {
+        var tr = document.createElement("tr");
+        var label = document.createElement("td");
+        var value = document.createElement("td");
+        label.textContent = row[0];
+        value.textContent = row[1];
+        if (String(row[1]).indexOf("版面會壞") !== -1) value.className = "bad";
+        if (row[0] === "支援 dvh 單位" && supportsDvh) value.className = "good";
+        tr.appendChild(label);
+        tr.appendChild(value);
+        table.appendChild(tr);
+      });
+
+      document.getElementById("ua").textContent = "UA: " + navigator.userAgent;
+
+      function copyAll() {
+        var text = rows.map(function (row) { return row[0] + ": " + row[1]; }).join("\n")
+          + "\nUA: " + navigator.userAgent;
+        navigator.clipboard
+          ? navigator.clipboard.writeText(text).then(function () { alert("已複製"); })
+          : prompt("手動複製：", text);
+      }
+    </script>
+  </body>
+</html>
