@@ -115,3 +115,28 @@ test("一般瀏覽器不會被誤判", () => {
 test("沒有 navigator 時不會炸掉", () => {
   assert.equal(withUserAgent(undefined, inAppBrowserName), null);
 });
+
+import { renderMenu } from "../src/ui.js";
+import { createProfile } from "../src/storage.js";
+
+test("內建瀏覽器且未全螢幕時，提示玩家按全螢幕", () => {
+  const html = renderMenu(createProfile(), { inAppBrowser: "LINE", fullscreenActive: false });
+  assert.match(html, /class="inapp-note"/);
+  assert.match(html, /LINE內建瀏覽器/);
+  assert.match(html, /點上方「全螢幕」/);
+});
+
+test("已經在全螢幕時不再顯示提示——問題已經解決了", () => {
+  const html = renderMenu(createProfile(), { inAppBrowser: "LINE", fullscreenActive: true });
+  assert.doesNotMatch(html, /class="inapp-note"/);
+});
+
+test("一般瀏覽器不顯示提示", () => {
+  const html = renderMenu(createProfile(), { inAppBrowser: null, fullscreenActive: false });
+  assert.doesNotMatch(html, /class="inapp-note"/);
+});
+
+test("提示不再宣稱內建瀏覽器無法全螢幕", () => {
+  const html = renderMenu(createProfile(), { inAppBrowser: "LINE", fullscreenActive: false });
+  assert.doesNotMatch(html, /無法全螢幕|不支援全螢幕/);
+});
