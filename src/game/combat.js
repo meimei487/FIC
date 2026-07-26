@@ -471,7 +471,14 @@ export class CombatEngine {
 
     if (!run.bossAlive && !run.bossSpawned && zone.hazard && hazardsArmed && run.sceneTime >= 5 && run.hazardClock <= 0) {
       this.queueZoneHazard(zone);
-      const base = zone.id === "skyfront" ? 7.5 : zone.id === "foundry" ? 8.5 : 10;
+      // Per-zone cadence: later zones fire more often. Tuned so the opening
+      // zones stay readable while the sky front keeps constant pressure.
+      const base = zone.id === "skyfront" ? 7.5
+        : zone.id === "canyon" ? 8
+          : zone.id === "foundry" ? 8.5
+            : zone.id === "harbor" ? 9
+              : zone.id === "capital" ? 9.5
+                : 10;
       run.hazardClock = (base + Math.random() * 2.5) * protocol.hazardInterval;
     }
   }
