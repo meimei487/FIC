@@ -34,6 +34,21 @@ function safeParse(value, fallback) {
   }
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Anonymous per-browser id for the leaderboard. Not tied to any real identity —
+ * it exists only so two players who pick the same nickname don't overwrite each
+ * other's spot. Generated once and kept in the profile.
+ */
+export function createClientId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+    const random = (Math.random() * 16) | 0;
+    return (char === "x" ? random : (random & 3) | 8).toString(16);
+  });
+}
+
 export function emptyResearch() {
   return Object.fromEntries(RESEARCH_ORDER.map((id) => [id, 0]));
 }
@@ -55,6 +70,10 @@ export function createProfile() {
     version: VERSION,
     credits: 0,
     best: 0,
+    nickname: "",
+    leaderboardClientId: createClientId(),
+    leaderboardBest: { score: 0, clearSeconds: null, bossKills: 0 },
+    hazardGraduated: false,
     unlocked: ["viper"],
     selected: "viper",
     deployment: { protocol: "standard", max: false },
@@ -95,6 +114,25 @@ function sanitizeProfile(candidate) {
   const profile = { ...base, ...candidate, version: VERSION };
   profile.credits = Math.max(0, Math.floor(Number(profile.credits) || 0));
   profile.best = Math.max(0, Math.floor(Number(profile.best) || 0));
+  profile.nickname = String(profile.nickname ?? "").trim().slice(0, 16).replace(/[<>"'`]/g, "");
+  profile.leaderboardClientId = UUID_PATTERN.test(profile.leaderboardClientId)
+    ? profile.leaderboardClientId
+    : createClientId();
+  // Existing players who already earned 機甲屠夫 (three bosses in one run) have
+  // demonstrably cleared the game, so they inherit the graduated flag instead of
+  // being made to climb the hazard ramp again from scratch.
+  profile.hazardGraduated = Boolean(profile.hazardGraduated)
+    || (Array.isArray(profile.achievements) && profile.achievements.includes("warmachine"));
+  const storedBest = profile.leaderboardBest && typeof profile.leaderboardBest === "object"
+    ? profile.leaderboardBest
+    : {};
+  profile.leaderboardBest = {
+    score: Math.max(0, Math.floor(Number(storedBest.score) || 0)),
+    clearSeconds: storedBest.clearSeconds == null
+      ? null
+      : Math.max(0, Number(storedBest.clearSeconds) || 0),
+    bossKills: Math.max(0, Math.floor(Number(storedBest.bossKills) || 0))
+  };
   profile.audio = profile.audio !== false;
   profile.fullscreenPreferred = profile.fullscreenPreferred === true;
   profile.musicVolume = clampInt(profile.musicVolume, 0, 100);
