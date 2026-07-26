@@ -285,6 +285,20 @@ export function bossChassisForOrdinal(ordinal = 1) {
   return BOSS_CHASSIS[BOSS_CHASSIS_ORDER[index]];
 }
 
+/**
+ * Which of the three scene slots in a round get their zone hazard switched on.
+ * Used for the newcomer ramp: round two gets one of three, round three gets two
+ * of three, and from the fourth round on everything is live.
+ */
+export function pickHazardRounds(count) {
+  const slots = [0, 1, 2];
+  for (let index = slots.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(Math.random() * (index + 1));
+    [slots[index], slots[swap]] = [slots[swap], slots[index]];
+  }
+  return slots.slice(0, count);
+}
+
 export function buildZoneRoute(completedBosses = 0, previousRoute = [], seed = 0) {
   const cycle = Math.max(0, Math.floor(completedBosses));
   if (cycle === 0) return [0, 1, 2];
