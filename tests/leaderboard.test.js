@@ -262,3 +262,19 @@ test("沒有機甲屠夫成就的帳號不會被誤判為已畢業", () => {
   saveProfile(profile, storage);
   assert.equal(loadProfile(storage).hazardGraduated, false);
 });
+
+import { ZONES } from "../src/config.js";
+
+test("六個戰區各自有專屬場地機制，沒有一區是空的", () => {
+  assert.equal(ZONES.length, 6);
+  const hazards = ZONES.map((zone) => zone.hazard);
+  assert.deepEqual(hazards, [
+    "shore-barrage", "armor-barrage", "air-superiority",
+    "heat-lane", "frost-wall", "air-raid"
+  ]);
+  assert.equal(new Set(hazards).size, 6);
+});
+
+test("戰區難度由低到高排列，第一區從 0 起算", () => {
+  assert.deepEqual(ZONES.map((zone) => zone.difficulty), [0, 1, 2, 3, 4, 5]);
+});
