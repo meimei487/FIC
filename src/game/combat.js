@@ -73,6 +73,23 @@ const WEAPON_MASTERY = Object.freeze({
 });
 const LEVIATHAN_CROSSFIRE_KIND = "leviathan-crossfire";
 
+// Every telegraph kind that occupies the full lane. Only one may be live at a
+// time, otherwise overlapping warnings become unreadable and undodgeable.
+const BLOCKING_TELEGRAPH_KINDS = [
+  "global-strike",
+  "artillery",
+  "heat-lane",
+  "frost-wall",
+  "air-raid",
+  "shore-barrage",
+  "armor-barrage",
+  "air-superiority"
+];
+
+// Same set plus the Leviathan crossfire, which also blocks a global strike.
+// Hoisted rather than spread inline: this is checked every frame a boss is up.
+const GLOBAL_STRIKE_BLOCKERS = [...BLOCKING_TELEGRAPH_KINDS, LEVIATHAN_CROSSFIRE_KIND];
+
 function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
 }
@@ -462,7 +479,7 @@ export class CombatEngine {
   queueZoneHazard(zone = zoneForRun(this.run)) {
     const run = this.run;
     if (!run || !zone?.hazard || run.telegraphs.some((item) =>
-      ["global-strike", "artillery", "heat-lane", "frost-wall", "air-raid"].includes(item.kind))) return false;
+      BLOCKING_TELEGRAPH_KINDS.includes(item.kind))) return false;
     if (zone.hazard === "heat-lane") {
       const x = clamp(run.x + (Math.random() - 0.5) * 80, 58, WIDTH - 58);
       run.telegraphs.push({ kind: "heat-lane", x, radius: 54, time: 1.35, duration: 1.35, fired: false });
@@ -475,6 +492,30 @@ export class CombatEngine {
     } else if (zone.hazard === "air-raid") {
       run.telegraphs.push({ kind: "air-raid", x: run.x, radius: 42, time: 0.95, duration: 0.95, fired: false });
       this.alert("高空鎖定", zone.accent, "立即離開瞄準區");
+    } else if (zone.hazard === "shore-barrage") {
+      // Two fixed columns from the flanks — the safe answer is always the
+      // centre, which suits the opening zone where players are still learning.
+      run.telegraphs.push({
+        kind: "shore-barrage",
+        leftX: WIDTH * 0.24,
+        rightX: WIDTH * 0.76,
+        radius: 46,
+        time: 1.5,
+        duration: 1.5,
+        fired: false
+      });
+      this.alert("灘頭炮擊", zone.accent, "退回中央安全走廊");
+    } else if (zone.hazard === "armor-barrage") {
+      // Three random narrow lanes; the gaps between them shift every time.
+      const lanes = [];
+      for (let index = 0; index < 3; index += 1) lanes.push(38 + Math.random() * (WIDTH - 76));
+      run.telegraphs.push({ kind: "armor-barrage", lanes, radius: 30, time: 1.25, duration: 1.25, fired: false });
+      this.alert("裝甲彈幕", zone.accent, "穿越砲擊帶間的窄縫");
+    } else if (zone.hazard === "air-superiority") {
+      // Wide circle locked onto wherever the player stands, with a long tell —
+      // punishes standing still rather than demanding precision.
+      run.telegraphs.push({ kind: "air-superiority", x: run.x, radius: 62, time: 1.7, duration: 1.7, fired: false });
+      this.alert("空優轟炸", zone.accent, "立即撤出立體打擊區");
     }
     return true;
   }
@@ -1443,7 +1484,7 @@ export class CombatEngine {
     const sinceLastStrike = boss.battleClock - (boss.globalStrikeLastAt ?? -Infinity);
     if (sinceLastStrike < GLOBAL_STRIKE_MIN_INTERVAL) return false;
     if (run.telegraphs.some((telegraph) =>
-      ["global-strike", "artillery", "heat-lane", "frost-wall", "air-raid", LEVIATHAN_CROSSFIRE_KIND].includes(telegraph.kind))) return false;
+      GLOBAL_STRIKE_BLOCKERS.includes(telegraph.kind))) return false;
     const duration = this.bossGlobalStrikeWarning(run.bossKills + 1);
     run.telegraphs.push({
       kind: "global-strike",
@@ -1539,6 +1580,33 @@ export class CombatEngine {
             undodgeable: true,
             ignoreHitInvuln: true,
             hitLabel: "空襲命中"
+          });
+        }
+      } else if (telegraph.kind === "shore-barrage") {
+        this.particles(telegraph.leftX, FORMATION_Y + 18, "#6eeeff", 46, 340);
+        this.particles(telegraph.rightX, FORMATION_Y + 18, "#6eeeff", 46, 340);
+        run.shake = Math.max(run.shake, 15);
+        const inLeft = Math.abs(run.x - telegraph.leftX) <= telegraph.radius;
+        const inRight = Math.abs(run.x - telegraph.rightX) <= telegraph.radius;
+        if (inLeft || inRight) {
+          this.damagePlayer(3, { undodgeable: true, ignoreHitInvuln: true, hitLabel: "灘頭炮擊" });
+        }
+      } else if (telegraph.kind === "armor-barrage") {
+        for (const lane of telegraph.lanes) this.particles(lane, FORMATION_Y + 18, "#ffc05f", 40, 320);
+        run.shake = Math.max(run.shake, 16);
+        if (telegraph.lanes.some((lane) => Math.abs(run.x - lane) <= telegraph.radius)) {
+          this.damagePlayer(3, { undodgeable: true, ignoreHitInvuln: true, hitLabel: "裝甲彈幕" });
+        }
+      } else if (telegraph.kind === "air-superiority") {
+        this.particles(telegraph.x, FORMATION_Y + 12, "#ff6b78", 64, 400);
+        run.shake = Math.max(run.shake, 18);
+        if (Math.abs(run.x - telegraph.x) <= telegraph.radius) {
+          this.damagePlayer(3, {
+            armorBreak: true,
+            armorDamage: 6,
+            undodgeable: true,
+            ignoreHitInvuln: true,
+            hitLabel: "空優轟炸"
           });
         }
       } else if (telegraph.kind === LEVIATHAN_CROSSFIRE_KIND) {

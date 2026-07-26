@@ -788,6 +788,79 @@ export class GameRenderer {
         context.fillText("空襲鎖定", telegraph.x, y - telegraph.radius - 18);
         context.restore();
       }
+
+      if (telegraph.kind === "shore-barrage" && layer === "overlay") {
+        const urgency = 1 - Math.max(0, telegraph.time) / telegraph.duration;
+        const pulse = 0.55 + Math.sin(run.elapsed * 27) * 0.2;
+        context.save();
+        context.globalAlpha = 0.1 + urgency * 0.14 + pulse * 0.06;
+        context.fillStyle = "#6eeeff";
+        context.fillRect(telegraph.leftX - telegraph.radius, 150, telegraph.radius * 2, HEIGHT - 150);
+        context.fillRect(telegraph.rightX - telegraph.radius, 150, telegraph.radius * 2, HEIGHT - 150);
+        context.globalAlpha = 0.68 + pulse * 0.22;
+        context.strokeStyle = "#bffcff";
+        context.lineWidth = 3;
+        context.setLineDash([11, 6]);
+        context.strokeRect(telegraph.leftX - telegraph.radius, 150, telegraph.radius * 2, HEIGHT - 162);
+        context.strokeRect(telegraph.rightX - telegraph.radius, 150, telegraph.radius * 2, HEIGHT - 162);
+        context.setLineDash([]);
+        context.textAlign = "center";
+        context.fillStyle = "#eafdff";
+        context.font = "1000 11px Arial";
+        context.fillText("灘頭炮擊", telegraph.leftX, FORMATION_Y - 92);
+        context.fillText("灘頭炮擊", telegraph.rightX, FORMATION_Y - 92);
+        context.restore();
+      }
+
+      if (telegraph.kind === "armor-barrage" && layer === "overlay") {
+        const urgency = 1 - Math.max(0, telegraph.time) / telegraph.duration;
+        const pulse = 0.55 + Math.sin(run.elapsed * 29) * 0.2;
+        context.save();
+        context.globalAlpha = 0.1 + urgency * 0.14 + pulse * 0.06;
+        context.fillStyle = "#ffc05f";
+        for (const lane of telegraph.lanes) {
+          context.fillRect(lane - telegraph.radius, 150, telegraph.radius * 2, HEIGHT - 150);
+        }
+        context.globalAlpha = 0.68 + pulse * 0.22;
+        context.strokeStyle = "#ffe0a8";
+        context.lineWidth = 3;
+        context.setLineDash([9, 5]);
+        for (const lane of telegraph.lanes) {
+          context.strokeRect(lane - telegraph.radius, 150, telegraph.radius * 2, HEIGHT - 162);
+        }
+        context.setLineDash([]);
+        context.textAlign = "center";
+        context.fillStyle = "#fff2da";
+        context.font = "1000 11px Arial";
+        // Single centred label — three lanes' worth would collide.
+        context.fillText("裝甲彈幕", WIDTH / 2, FORMATION_Y - 92);
+        context.restore();
+      }
+
+      if (telegraph.kind === "air-superiority" && layer === "overlay") {
+        const urgency = 1 - Math.max(0, telegraph.time) / telegraph.duration;
+        const pulse = 0.55 + Math.sin(run.elapsed * 22) * 0.2;
+        const y = FORMATION_Y + 12;
+        context.save();
+        context.globalAlpha = 0.1 + urgency * 0.16;
+        context.fillStyle = "#ff6b78";
+        context.beginPath();
+        context.arc(telegraph.x, y, telegraph.radius, 0, Math.PI * 2);
+        context.fill();
+        context.globalAlpha = 0.68 + pulse * 0.24;
+        context.strokeStyle = "#ffb3ba";
+        context.lineWidth = 3;
+        context.setLineDash([10, 6]);
+        context.beginPath();
+        context.arc(telegraph.x, y, telegraph.radius, 0, Math.PI * 2);
+        context.stroke();
+        context.setLineDash([]);
+        context.textAlign = "center";
+        context.fillStyle = "#fff0f1";
+        context.font = "1000 11px Arial";
+        context.fillText("空優轟炸", telegraph.x, y - telegraph.radius - 18);
+        context.restore();
+      }
     }
   }
 
