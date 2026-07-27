@@ -6,23 +6,31 @@
     <meta name="theme-color" content="#070b0d" />
     <title>視窗診斷 — 火線暴走</title>
     <style>
-      :root { color-scheme: dark; }
-      html, body { margin: 0; background: #070b0d; color: #eaf7f5; }
+      :root {
+        color-scheme: dark;
+        --sat: env(safe-area-inset-top, 0px);
+        --sab: env(safe-area-inset-bottom, 0px);
+      }
+      html, body { margin: 0; background: #070b0d; color: #eaf7f5; height: 100%; }
       body {
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: 12px;
         padding: 16px;
+        padding-top: calc(16px + var(--sat));
+        padding-bottom: calc(16px + var(--sab));
         line-height: 1.7;
+        min-height: 100vh;
+        box-sizing: border-box;
       }
       h1 { font-size: 15px; margin: 0 0 4px; color: #66e8ee; letter-spacing: 0.06em; }
-      p.hint { color: #829796; font-size: 11px; margin: 0 0 14px; line-height: 1.6; }
-      table { border-collapse: collapse; width: 100%; margin-bottom: 14px; }
+      p.hint { color: #829796; font-size: 11px; margin: 0 0 12px; line-height: 1.6; }
+      table { border-collapse: collapse; width: 100%; margin-bottom: 10px; }
       td { padding: 5px 6px; border-bottom: 1px solid #ffffff14; vertical-align: top; }
       td:first-child { color: #829796; white-space: nowrap; width: 42%; }
       td:last-child { color: #eaf7f5; font-weight: 700; }
       .bad { color: #ff5f6e !important; }
       .good { color: #6fffc0 !important; }
-      /* 這一格用來實測 game-shell 在這台裝置上會算成多大 */
+      .neutral { color: #ffc75f !important; }
       #probe {
         width: min(100vw, 56.277dvh);
         height: min(100dvh, 177.69vw);
@@ -30,11 +38,27 @@
         left: -9999px;
         top: 0;
       }
-      #ua { word-break: break-all; color: #829796; font-size: 10px; line-height: 1.6; }
+      #ua { word-break: break-all; color: #829796; font-size: 10px; line-height: 1.6; margin-top: 4px; }
+      #fs-state {
+        text-align: center;
+        font-weight: 900;
+        font-size: 13px;
+        padding: 8px;
+        margin-bottom: 10px;
+        border: 1px solid #ffffff26;
+      }
+      #fs-state.on { color: #6fffc0; border-color: #6fffc04d; }
+      #fs-state.off { color: #829796; }
       button {
-        width: 100%; padding: 11px; margin-top: 6px;
+        width: 100%; padding: 12px; margin-top: 8px;
         background: #66e8ee; color: #071113; border: 0;
-        font: 800 12px ui-monospace, monospace; cursor: pointer;
+        font: 900 13px ui-monospace, monospace; cursor: pointer;
+      }
+      button.secondary { background: transparent; color: #66e8ee; border: 1px solid #66e8ee4d; font-weight: 700; }
+      #snapshots { margin-top: 14px; }
+      .snap-label {
+        color: #66e8ee; font-weight: 800; font-size: 11px;
+        margin: 12px 0 4px; letter-spacing: 0.04em;
       }
     </style>
   </head>
@@ -42,22 +66,28 @@
     <div id="probe"></div>
     <h1>視窗診斷</h1>
     <p class="hint">
-      用同一支手機分別從 LINE 點開、以及貼到瀏覽器網址列開啟，比對兩邊的數字。
-      差在哪一行，問題就在哪裡。
+      先點下方按鈕拍一張「一般模式」快照，再按「進入全螢幕」拍一張「全螢幕」快照，
+      兩邊都拍完後按「複製全部結果」。用同一支手機分別從 LINE 和瀏覽器網址列各做一次，共四張快照。
     </p>
 
-    <table id="out"></table>
+    <div id="fs-state" class="off">尚未進入全螢幕</div>
+    <button id="fs-toggle">進入全螢幕</button>
+    <button id="snap-btn" class="secondary">拍下目前這個狀態的快照</button>
 
+    <table id="out"></table>
     <div id="ua"></div>
-    <button onclick="copyAll()">複製全部結果</button>
+
+    <div id="snapshots"></div>
+    <button id="copy-btn" class="secondary">複製全部快照</button>
 
     <script>
+      var snapshots = [];
+
       function px(value) {
         return Number.isFinite(value) ? Math.round(value * 100) / 100 + "px" : "—";
       }
 
       function measureUnit(unit) {
-        // 直接讓瀏覽器算，不支援的單位會回傳 0 或空字串
         var probe = document.createElement("div");
         probe.style.cssText = "position:absolute;left:-9999px;top:0;height:100" + unit + ";";
         document.body.appendChild(probe);
@@ -66,50 +96,130 @@
         return height;
       }
 
-      var supportsDvh = CSS.supports("height", "100dvh");
-      var shell = document.getElementById("probe").getBoundingClientRect();
+      function isFullscreen() {
+        return Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+      }
 
-      var rows = [
-        ["螢幕實體", screen.width + " × " + screen.height],
-        ["devicePixelRatio", window.devicePixelRatio],
-        ["innerWidth / Height", window.innerWidth + " × " + window.innerHeight],
-        ["visualViewport", window.visualViewport
-          ? Math.round(window.visualViewport.width) + " × " + Math.round(window.visualViewport.height)
-          : "不支援"],
-        ["支援 dvh 單位", supportsDvh ? "是" : "否 ← 版面會壞"],
-        ["100vh 實測", px(measureUnit("vh"))],
-        ["100dvh 實測", px(measureUnit("dvh"))],
-        ["100svh 實測", px(measureUnit("svh"))],
-        ["100lvh 實測", px(measureUnit("lvh"))],
-        ["game-shell 實算", px(shell.width) + " × " + px(shell.height)],
-        ["safe-area 上／下", getComputedStyle(document.documentElement).getPropertyValue("--sat") || "見下"],
-        ["直向／橫向", window.innerWidth < window.innerHeight ? "直向" : "橫向"],
-        ["是否在 iframe 內", window.top === window.self ? "否" : "是"]
-      ];
+      function measureNow() {
+        var supportsDvh = CSS.supports("height", "100dvh");
+        var shell = document.getElementById("probe").getBoundingClientRect();
+        var style = getComputedStyle(document.documentElement);
 
-      var table = document.getElementById("out");
-      rows.forEach(function (row) {
-        var tr = document.createElement("tr");
-        var label = document.createElement("td");
-        var value = document.createElement("td");
-        label.textContent = row[0];
-        value.textContent = row[1];
-        if (String(row[1]).indexOf("版面會壞") !== -1) value.className = "bad";
-        if (row[0] === "支援 dvh 單位" && supportsDvh) value.className = "good";
-        tr.appendChild(label);
-        tr.appendChild(value);
-        table.appendChild(tr);
-      });
+        return [
+          ["全螢幕狀態", isFullscreen() ? "是" : "否"],
+          ["螢幕實體", screen.width + " × " + screen.height],
+          ["devicePixelRatio", window.devicePixelRatio],
+          ["innerWidth / Height", window.innerWidth + " × " + window.innerHeight],
+          ["visualViewport", window.visualViewport
+            ? Math.round(window.visualViewport.width) + " × " + Math.round(window.visualViewport.height)
+            : "不支援"],
+          ["支援 dvh 單位", supportsDvh ? "是" : "否 ← 版面會壞"],
+          ["100vh 實測", px(measureUnit("vh"))],
+          ["100dvh 實測", px(measureUnit("dvh"))],
+          ["100svh 實測", px(measureUnit("svh"))],
+          ["100lvh 實測", px(measureUnit("lvh"))],
+          ["game-shell 實算", px(shell.width) + " × " + px(shell.height)],
+          ["safe-area 上", style.getPropertyValue("--sat").trim() || "0px"],
+          ["safe-area 下", style.getPropertyValue("--sab").trim() || "0px"],
+          ["直向／橫向", window.innerWidth < window.innerHeight ? "直向" : "橫向"],
+          ["是否在 iframe 內", window.top === window.self ? "否" : "是"]
+        ];
+      }
 
-      document.getElementById("ua").textContent = "UA: " + navigator.userAgent;
+      function render() {
+        var rows = measureNow();
+        var table = document.getElementById("out");
+        table.innerHTML = "";
+        rows.forEach(function (row) {
+          var tr = document.createElement("tr");
+          var label = document.createElement("td");
+          var value = document.createElement("td");
+          label.textContent = row[0];
+          value.textContent = row[1];
+          if (String(row[1]).indexOf("版面會壞") !== -1) value.className = "bad";
+          if (row[0] === "支援 dvh 單位" && row[1] === "是") value.className = "good";
+          if (row[0] === "全螢幕狀態") value.className = row[1] === "是" ? "good" : "neutral";
+          tr.appendChild(label);
+          tr.appendChild(value);
+          table.appendChild(tr);
+        });
+
+        var fsState = document.getElementById("fs-state");
+        var fsToggle = document.getElementById("fs-toggle");
+        if (isFullscreen()) {
+          fsState.textContent = "已進入全螢幕";
+          fsState.className = "on";
+          fsToggle.textContent = "退出全螢幕";
+        } else {
+          fsState.textContent = "尚未進入全螢幕";
+          fsState.className = "off";
+          fsToggle.textContent = "進入全螢幕";
+        }
+      }
+
+      function toggleFullscreen() {
+        if (isFullscreen()) {
+          (document.exitFullscreen || document.webkitExitFullscreen || function () {}).call(document);
+        } else {
+          var target = document.documentElement;
+          var request = target.requestFullscreen || target.webkitRequestFullscreen;
+          if (request) {
+            try {
+              var result = request.call(target, { navigationUI: "hide" });
+              if (result && result.catch) result.catch(function () { alert("這個瀏覽器拒絕了全螢幕請求"); });
+            } catch (error) {
+              alert("這個瀏覽器不支援全螢幕，或呼叫方式不同：" + error.message);
+            }
+          } else {
+            alert("這個瀏覽器完全沒有 requestFullscreen 方法");
+          }
+        }
+      }
+
+      function takeSnapshot() {
+        var rows = measureNow();
+        snapshots.push({ time: new Date().toLocaleTimeString("zh-TW"), rows: rows });
+        renderSnapshotList();
+      }
+
+      function renderSnapshotList() {
+        var host = document.getElementById("snapshots");
+        host.innerHTML = "";
+        snapshots.forEach(function (snap, index) {
+          var label = document.createElement("div");
+          label.className = "snap-label";
+          var fsRow = snap.rows.find(function (r) { return r[0] === "全螢幕狀態"; });
+          label.textContent = "快照 " + (index + 1) + "（" + snap.time + "，全螢幕：" + fsRow[1] + "）";
+          host.appendChild(label);
+        });
+      }
 
       function copyAll() {
-        var text = rows.map(function (row) { return row[0] + ": " + row[1]; }).join("\n")
-          + "\nUA: " + navigator.userAgent;
+        if (!snapshots.length) {
+          alert("還沒有拍任何快照，請先按「拍下目前這個狀態的快照」");
+          return;
+        }
+        var text = snapshots.map(function (snap, index) {
+          var fsRow = snap.rows.find(function (r) { return r[0] === "全螢幕狀態"; });
+          var header = "=== 快照 " + (index + 1) + "（" + snap.time + "，全螢幕：" + fsRow[1] + "）===";
+          var body = snap.rows.map(function (row) { return row[0] + ": " + row[1]; }).join("\n");
+          return header + "\n" + body;
+        }).join("\n\n") + "\n\nUA: " + navigator.userAgent;
+
         navigator.clipboard
-          ? navigator.clipboard.writeText(text).then(function () { alert("已複製"); })
+          ? navigator.clipboard.writeText(text).then(function () { alert("已複製 " + snapshots.length + " 張快照"); })
           : prompt("手動複製：", text);
       }
+
+      document.getElementById("fs-toggle").addEventListener("click", toggleFullscreen);
+      document.getElementById("snap-btn").addEventListener("click", takeSnapshot);
+      document.getElementById("copy-btn").addEventListener("click", copyAll);
+      document.addEventListener("fullscreenchange", render);
+      document.addEventListener("webkitfullscreenchange", render);
+      window.addEventListener("resize", render);
+
+      document.getElementById("ua").textContent = "UA: " + navigator.userAgent;
+      render();
     </script>
   </body>
 </html>
